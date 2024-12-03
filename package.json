@@ -1,0 +1,97 @@
+{
+  "name": "crm-xbox-electron-react",
+  "version": "2.0.0",
+  "main": "./src/main.js",
+  "description": "CRM XBOX App",
+  "author": "Tomy G. Berrios Berrios",
+  "scripts": {
+    "start": "concurrently \"npm run dev\" \"npm run electron\"",
+    "dev": "webpack serve --hot",
+    "electron": "wait-on http://localhost:9000 && cross-env ELECTRON_START_URL=http://localhost:9000 electron .",
+    "build": "webpack && electron-builder",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder"
+  },
+  "build": {
+    "appId": "com.crm-xbox-electron",
+    "productName": "CRM XBOX App",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "dist/**/*",
+      "./src/**/*",
+      "assets/**/*",
+      "CERTDB.db",
+      "xbox.ico"
+    ],
+    "extraResources": [
+      {
+        "from": "public",
+        "to": "public"
+      }
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "./xbox.ico"
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "./xbox.ico"
+    }
+  },
+  "devDependencies": {
+    "@babel/core": "latest",
+    "@babel/preset-env": "latest",
+    "@babel/preset-react": "latest",
+    "babel-loader": "latest",
+    "concurrently": "latest",
+    "cpx": "^1.5.0",
+    "cross-env": "^7.0.3",
+    "css-loader": "^7.1.2",
+    "electron": "latest",
+    "electron-builder": "^25.1.8",
+    "html-webpack-plugin": "latest",
+    "style-loader": "^4.0.0",
+    "wait-on": "latest",
+    "webpack": "^5.95.0",
+    "webpack-cli": "^5.1.4",
+    "webpack-dev-server": "latest"
+  },
+  "dependencies": {
+    "@chakra-ui/icons": "^2.2.4",
+    "@chakra-ui/react": "^2.10.2",
+    "@emotion/react": "^11.13.3",
+    "@emotion/styled": "^11.13.0",
+    "chakra-react-select": "^5.0.2",
+    "chart.js": "^4.4.6",
+    "date-fns": "^4.1.0",
+    "dotenv": "^16.4.5",
+    "electron-updater": "^6.3.9",
+    "file-saver": "^2.0.5",
+    "framer-motion": "^11.11.9",
+    "html2canvas": "^1.4.1",
+    "jquery": "^3.7.1",
+    "jspdf": "^2.5.1",
+    "jspdf-autotable": "^3.5.23",
+    "lodash": "^4.17.21",
+    "lodash.debounce": "^4.0.8",
+    "pg": "^8.13.1",
+    "quill": "^2.0.2",
+    "react": "latest",
+    "react-chartjs-2": "^5.2.0",
+    "react-datepicker": "^7.5.0",
+    "react-dom": "latest",
+    "react-icons": "^5.3.0",
+    "react-quill": "^2.0.0",
+    "react-router-dom": "^6.27.0",
+    "react-select": "^5.8.2",
+    "react-table": "^7.8.0",
+    "react-toastify": "^10.0.6",
+    "react-virtualized-auto-sizer": "^1.0.24",
+    "react-window": "^1.8.10",
+    "recharts": "^2.13.0",
+    "sanitize-html": "^2.13.1",
+    "xlsx": "^0.18.5"
+  }
+}

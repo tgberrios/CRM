@@ -1,0 +1,113 @@
+#auth-page {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  background: #ffffff; /* Fondo blanco */
+  position: relative;
+  overflow: hidden;
+}
+
+/* Burbujas definidas */
+#auth-page::before,
+#auth-page::after,
+#auth-page .bubble1,
+#auth-page .bubble2,
+#auth-page .bubble3,
+#auth-page .bubble4 {
+  content: "";
+  position: absolute;
+  width: 300px; /* Tamaño base de burbujas */
+  height: 300px;
+  background: radial-gradient(
+    circle,
+    rgb(100, 124, 100) 30%,
+    /* Verde vibrante */ transparent 70%
+  );
+  border-radius: 50%;
+  animation: bubbleMove 20s ease-in-out infinite;
+  opacity: 0.7;
+}
+
+/* Segunda burbuja */
+#auth-page::after {
+  background: radial-gradient(
+    circle,
+    rgb(100, 124, 100) 30%,
+    /* Rosa neón */ transparent 70%
+  );
+  animation-duration: 25s;
+  animation-delay: -10s; /* Desfase en la animación */
+}
+
+/* Tercera burbuja (nueva) */
+#auth-page .bubble1 {
+  width: 200px;
+  height: 200px;
+  top: 30%;
+  left: 70%;
+  background: radial-gradient(
+    circle,
+    rgb(100, 124, 100) 30%,
+    /* Verde lima */ transparent 70%
+  );
+  animation-duration: 18s;
+  animation-delay: -5s;
+}
+
+/* Cuarta burbuja (nueva) */
+#auth-page .bubble2 {
+  width: 250px;
+  height: 250px;
+  top: 80%;
+  left: 20%;
+  background: radial-gradient(
+    circle,
+    rgb(100, 124, 100) 30%,
+    /* Naranja chill */ transparent 70%
+  );
+  animation-duration: 22s;
+  animation-delay: -8s;
+}
+
+/* Quinta burbuja (nueva) */
+#auth-page .bubble3 {
+  width: 150px;
+  height: 150px;
+  top: 50%;
+  left: 50%;
+  background: radial-gradient(
+    circle,
+    rgb(100, 124, 100) 30%,
+    /* Verde claro */ transparent 70%
+  );
+  animation-duration: 30s;
+  animation-delay: -12s;
+}
+
+/* Sexta burbuja (nueva) */
+#auth-page .bubble4 {
+  width: 150px;
+  height: 150px;
+  top: 20%;
+  left: 10%;
+  background: radial-gradient(
+    circle,
+    rgb(100, 124, 100) 30%,
+    /* Verde pálido */ transparent 70%
+  );
+  animation-duration: 28s;
+  animation-delay: -14s;
+}
+
+@keyframes bubbleMove {
+  0% {
+    transform: translate(-50%, -50%) scale(1);
+  }
+  50% {
+    transform: translate(50%, 50%) scale(1.2);
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
