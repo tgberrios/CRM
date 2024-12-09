@@ -16,6 +16,10 @@ import {
   Button,
   Input,
   useColorModeValue,
+  Spinner,
+  useToast,
+  Flex,
+  IconButton,
 } from "@chakra-ui/react";
 import {
   MdUpdate,
@@ -23,15 +27,17 @@ import {
   MdSearch,
   MdArrowBack,
   MdArrowForward,
+  MdDelete,
 } from "react-icons/md";
 import sanitizeHtml from "sanitize-html";
 
-const NotificationModal = ({ isOpen, onClose, updates }) => {
+const NotificationModal = ({ isOpen, onClose, updates, isLoading }) => {
   const [unreadUpdates, setUnreadUpdates] = useState([]);
   const [selectedUpdate, setSelectedUpdate] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const updatesPerPage = 5;
+  const toast = useToast();
 
   const bg = useColorModeValue("white", "gray.800");
   const textColor = useColorModeValue("gray.800", "white");
@@ -47,15 +53,58 @@ const NotificationModal = ({ isOpen, onClose, updates }) => {
     setSelectedUpdate(null); // Reset selected update when updates change
   }, [updates]);
 
-  const handleUpdateClick = useCallback((update) => {
-    const storedReadUpdates =
-      JSON.parse(localStorage.getItem("readUpdates")) || [];
-    const updatedReadUpdates = [...storedReadUpdates, update.id];
-    localStorage.setItem("readUpdates", JSON.stringify(updatedReadUpdates));
+  const handleUpdateClick = useCallback(
+    (update) => {
+      const storedReadUpdates =
+        JSON.parse(localStorage.getItem("readUpdates")) || [];
+      const updatedReadUpdates = [...storedReadUpdates, update.id];
+      localStorage.setItem("readUpdates", JSON.stringify(updatedReadUpdates));
 
-    setUnreadUpdates((prev) => prev.filter((u) => u.id !== update.id));
-    setSelectedUpdate(update);
-  }, []);
+      setUnreadUpdates((prev) => prev.filter((u) => u.id !== update.id));
+      setSelectedUpdate(update);
+
+      toast({
+        title: "Update Read",
+        description: `"${update.title}" has been marked as read.`,
+        status: "info",
+        duration: 3000,
+        isClosable: true,
+      });
+    },
+    [toast]
+  );
+
+  const handleDeleteUpdate = useCallback(
+    (id) => {
+      // Implement the delete functionality here
+      // For example, you might call an API to delete the update
+      // After successful deletion, remove it from the state
+
+      // Mock deletion for demonstration purposes
+      const confirmDelete = window.confirm(
+        "Are you sure you want to delete this update?"
+      );
+      if (confirmDelete) {
+        // Simulate API call delay
+        setTimeout(() => {
+          // Remove the update from the updates array
+          const updatedUpdates = updates.filter((u) => u.id !== id);
+          localStorage.setItem("readUpdates", JSON.stringify([])); // Reset read updates
+          setUnreadUpdates(updatedUpdates);
+          setSelectedUpdate(null);
+
+          toast({
+            title: "Update Deleted",
+            description: "The update has been successfully deleted.",
+            status: "success",
+            duration: 3000,
+            isClosable: true,
+          });
+        }, 1000);
+      }
+    },
+    [updates, toast]
+  );
 
   const stripHtmlTags = useCallback((html) => {
     return sanitizeHtml(html, {
@@ -74,7 +123,7 @@ const NotificationModal = ({ isOpen, onClose, updates }) => {
     });
   }, []);
 
-  const markAllAsRead = () => {
+  const markAllAsRead = useCallback(() => {
     const storedReadUpdates =
       JSON.parse(localStorage.getItem("readUpdates")) || [];
     const allUpdateIds = updates.map((update) => update.id);
@@ -84,8 +133,17 @@ const NotificationModal = ({ isOpen, onClose, updates }) => {
     localStorage.setItem("readUpdates", JSON.stringify(updatedReadUpdates));
     setUnreadUpdates([]);
     setSelectedUpdate(null); // Reset selected update when marking all as read
+
+    toast({
+      title: "All Updates Read",
+      description: "All updates have been marked as read.",
+      status: "success",
+      duration: 3000,
+      isClosable: true,
+    });
+
     onClose();
-  };
+  }, [updates, toast, onClose]);
 
   const filteredUpdates = useMemo(() => {
     return unreadUpdates.filter((update) =>
@@ -94,19 +152,25 @@ const NotificationModal = ({ isOpen, onClose, updates }) => {
   }, [unreadUpdates, searchQuery]);
 
   // Pagination logic
-  const totalPages = Math.ceil(filteredUpdates.length / updatesPerPage);
+  const totalPages = useMemo(() => {
+    return Math.ceil(filteredUpdates.length / updatesPerPage);
+  }, [filteredUpdates.length]);
+
   const currentUpdates = useMemo(() => {
     const start = (currentPage - 1) * updatesPerPage;
     return filteredUpdates.slice(start, start + updatesPerPage);
   }, [filteredUpdates, currentPage, updatesPerPage]);
 
-  const handlePageChange = (direction) => {
-    setCurrentPage((prev) => {
-      if (direction === "prev") return Math.max(prev - 1, 1);
-      if (direction === "next") return Math.min(prev + 1, totalPages);
-      return prev;
-    });
-  };
+  const handlePageChange = useCallback(
+    (direction) => {
+      setCurrentPage((prev) => {
+        if (direction === "prev") return Math.max(prev - 1, 1);
+        if (direction === "next") return Math.min(prev + 1, totalPages);
+        return prev;
+      });
+    },
+    [totalPages]
+  );
 
   // Conditional rendering: Render modal only if it's open and there are unread updates or a selected update
   if (!isOpen || (unreadUpdates.length === 0 && !selectedUpdate)) {
@@ -143,7 +207,7 @@ const NotificationModal = ({ isOpen, onClose, updates }) => {
                     borderRadius="md"
                     px={2}
                   >
-                    <MdSearch color="gray.500" />
+                    <Icon as={MdSearch} color="gray.500" />
                     <Input
                       placeholder="Search updates..."
                       value={searchQuery}
@@ -156,7 +220,7 @@ const NotificationModal = ({ isOpen, onClose, updates }) => {
                   </HStack>
                   <Button
                     size="sm"
-                    colorScheme="green"
+                    colorScheme="blue"
                     onClick={markAllAsRead}
                     leftIcon={<MdMarkEmailRead />}
                     aria-label="Mark all as read"
@@ -165,7 +229,29 @@ const NotificationModal = ({ isOpen, onClose, updates }) => {
                   </Button>
                 </HStack>
 
-                {currentUpdates.length > 0 ? (
+                {isLoading ? (
+                  <VStack spacing={4} w="100%">
+                    {[...Array(3)].map((_, index) => (
+                      <Box
+                        key={index}
+                        p={4}
+                        bg={useColorModeValue("gray.50", "gray.700")}
+                        borderRadius="md"
+                        w="100%"
+                      >
+                        <HStack mb={2}>
+                          <Skeleton circle height="40px" width="40px" />
+                          <VStack align="start" spacing={1} flex="1">
+                            <Skeleton height="16px" width="60%" />
+                            <Skeleton height="12px" width="40%" />
+                          </VStack>
+                          <Skeleton height="20px" width="80px" />
+                        </HStack>
+                        <Skeleton height="14px" width="90%" />
+                      </Box>
+                    ))}
+                  </VStack>
+                ) : currentUpdates.length > 0 ? (
                   currentUpdates.map((update) => (
                     <Box
                       key={update.id}
@@ -180,7 +266,7 @@ const NotificationModal = ({ isOpen, onClose, updates }) => {
                       }}
                     >
                       <HStack>
-                        <Icon as={MdUpdate} w={5} h={5} color="teal.500" />
+                        <Icon as={MdUpdate} w={5} h={5} color="blue.500" />
                         <Text fontWeight="medium" flex="1">
                           {update.title}
                         </Text>
@@ -203,11 +289,12 @@ const NotificationModal = ({ isOpen, onClose, updates }) => {
                 {totalPages > 1 && (
                   <HStack w="100%" justify="space-between" mt={4}>
                     <Button
-                      size="sm"
                       onClick={() => handlePageChange("prev")}
-                      disabled={currentPage === 1}
+                      isDisabled={currentPage === 1}
                       leftIcon={<MdArrowBack />}
                       variant="ghost"
+                      size="sm"
+                      aria-label="Previous Page"
                     >
                       Previous
                     </Button>
@@ -215,11 +302,12 @@ const NotificationModal = ({ isOpen, onClose, updates }) => {
                       Page {currentPage} of {totalPages}
                     </Text>
                     <Button
-                      size="sm"
                       onClick={() => handlePageChange("next")}
-                      disabled={currentPage === totalPages}
+                      isDisabled={currentPage === totalPages}
                       rightIcon={<MdArrowForward />}
                       variant="ghost"
+                      size="sm"
+                      aria-label="Next Page"
                     >
                       Next
                     </Button>
@@ -234,7 +322,7 @@ const NotificationModal = ({ isOpen, onClose, updates }) => {
                 w="100%"
               >
                 <HStack mb={2}>
-                  <Icon as={MdUpdate} w={5} h={5} color="teal.500" />
+                  <Icon as={MdUpdate} w={5} h={5} color="blue.500" />
                   <Text fontWeight="medium">{selectedUpdate.title}</Text>
                   <Badge colorScheme="blue" variant="subtle">
                     {selectedUpdate.type}
@@ -265,15 +353,26 @@ const NotificationModal = ({ isOpen, onClose, updates }) => {
                 <Text fontSize="xs" color="gray.500" mt={2}>
                   {formatDate(selectedUpdate.date)}
                 </Text>
-                <Button
-                  mt={4}
-                  size="sm"
-                  onClick={() => setSelectedUpdate(null)}
-                  leftIcon={<MdArrowBack />}
-                  colorScheme="teal"
-                >
-                  Back to Updates
-                </Button>
+                <Flex mt={4} justify="flex-end" gap={2}>
+                  <Button
+                    onClick={() => setSelectedUpdate(null)}
+                    leftIcon={<MdArrowBack />}
+                    variant="outline"
+                    size="sm"
+                    aria-label="Back to Updates"
+                  >
+                    Back
+                  </Button>
+                  <Button
+                    colorScheme="red"
+                    leftIcon={<MdDelete />}
+                    size="sm"
+                    onClick={() => handleDeleteUpdate(selectedUpdate.id)}
+                    aria-label="Delete Update"
+                  >
+                    Delete
+                  </Button>
+                </Flex>
               </Box>
             )}
           </VStack>

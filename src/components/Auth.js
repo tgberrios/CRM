@@ -9,11 +9,10 @@ export default function Auth() {
   const [showLoginForm, setShowLoginForm] = useState(true);
   const navigate = useNavigate();
 
-  // Check if user is already logged in (based on localStorage)
   useEffect(() => {
     const storedUsername = localStorage.getItem("username");
     if (storedUsername) {
-      navigate("/home"); // Redirect if already logged in
+      navigate("/home");
     }
   }, [navigate]);
 

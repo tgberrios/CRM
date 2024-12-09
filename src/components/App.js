@@ -1,7 +1,7 @@
 import React from "react";
 import { ChakraProvider } from "@chakra-ui/react";
 import {
-  HashRouter as Router, // Cambiado a HashRouter
+  HashRouter as Router,
   Routes,
   Route,
   Navigate,
@@ -52,7 +52,6 @@ export default function App() {
           <Route path="/RetailTracker" element={<RetailTracker />} />
           <Route path="/ConsolePrep" element={<ConsolePrep />} />
 
-          {/* Envolver SubmissionManager con TestModelsProvider */}
           <Route
             path="/SubmissionManager"
             element={

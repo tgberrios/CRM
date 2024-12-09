@@ -1,15 +1,29 @@
-import React, { useState, useEffect } from "react";
+// Home.js
+import React, { useEffect, useState, useCallback } from "react";
 import {
   Box,
-  Flex,
-  Text,
+  Container,
   Button,
+  Flex,
+  Table,
+  Thead,
+  Tbody,
+  Tr,
+  Th,
+  Td,
+  Spinner,
+  Text,
+  Input,
+  useToast,
+  IconButton,
+  HStack,
   SimpleGrid,
   Heading,
   Stack,
   Center,
-  IconButton,
 } from "@chakra-ui/react";
+import { CopyIcon } from "@chakra-ui/icons"; // Correct import for CopyIcon
+import { useNavigate } from "react-router-dom";
 import {
   FiExternalLink,
   FiMail,
@@ -18,54 +32,115 @@ import {
   FiMap,
   FiClipboard,
   FiLogOut,
-} from "react-icons/fi";
-import { useNavigate } from "react-router-dom";
+} from "react-icons/fi"; // Correct import for Feather icons
 import Navbar from "./Navbar";
 import Footer from "./Footer";
 import NotificationModal from "./NotificationModal";
 
+/**
+ * Debounce function to limit the rate at which a function can fire.
+ * @param {Function} func - The function to debounce.
+ * @param {number} delay - The delay in milliseconds.
+ * @returns {Function} - The debounced function.
+ */
+const debounce = (func, delay) => {
+  let timeout;
+  return (...args) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func.apply(this, args), delay);
+  };
+};
+
+/**
+ * Main component for the Home page.
+ * Displays various tools and services with quick access buttons.
+ * Also handles user notifications and session management.
+ * @returns {JSX.Element} - The rendered component.
+ */
 const Home = () => {
   const [username, setUsername] = useState("");
-  const [updates, setUpdates] = useState([]); // Estado para almacenar actualizaciones
-  const [isModalOpen, setIsModalOpen] = useState(false); // Controla la apertura del modal
-  const [hasSeenUpdates, setHasSeenUpdates] = useState(false); // Nuevo estado para controlar si el usuario ha visto las actualizaciones
+  const [updates, setUpdates] = useState([]); // State to store updates
+  const [isModalOpen, setIsModalOpen] = useState(false); // Controls modal visibility
+  const [hasSeenUpdates, setHasSeenUpdates] = useState(false); // Tracks if user has seen updates
   const navigate = useNavigate();
+  const toast = useToast(); // Initialize useToast hook
 
   useEffect(() => {
-    // Obtener el nombre de usuario almacenado
+    // Retrieve the stored username
     const storedUsername = localStorage.getItem("username");
     if (storedUsername) {
       setUsername(storedUsername);
     }
 
-    // Cargar las actualizaciones desde window.cert.getUpdates
+    // Fetch updates from window.cert.getUpdates
     const fetchUpdates = async () => {
       try {
-        const updatesData = await window.cert.getUpdates(); // Llama a getUpdates
+        if (!window.cert || typeof window.cert.getUpdates !== "function") {
+          throw new Error("cert.getUpdates is undefined or not a function");
+        }
+
+        const updatesData = await window.cert.getUpdates(); // Call getUpdates
         setUpdates(updatesData);
 
-        // Mostrar el modal solo si hay actualizaciones nuevas y el usuario no las ha visto
+        // Show the modal only if there are new updates and the user hasn't seen them
         if (updatesData.length > 0 && !hasSeenUpdates) {
           setIsModalOpen(true);
         }
       } catch (error) {
         console.error("Error fetching updates:", error);
+        toast({
+          title: "Error",
+          description:
+            "There was a problem loading the updates. Please try again later.",
+          status: "error",
+          duration: 5000,
+          isClosable: true,
+          position: "top-right",
+        });
       }
     };
 
     fetchUpdates();
-  }, [hasSeenUpdates]);
+  }, [hasSeenUpdates, toast]);
 
-  // Función para cerrar el modal y marcar las actualizaciones como vistas
+  /**
+   * Closes the notification modal and marks updates as seen.
+   */
   const handleModalClose = () => {
     setIsModalOpen(false);
-    setHasSeenUpdates(true); // Marcar que el usuario ya vio las actualizaciones
+    setHasSeenUpdates(true); // Mark that the user has seen the updates
   };
 
-  // Función para cerrar sesión
+  /**
+   * Handles user logout by clearing local storage and navigating to the auth page.
+   */
   const handleLogoutClick = () => {
     localStorage.removeItem("username");
     navigate("/auth");
+    toast({
+      title: "Logged Out",
+      description: "You have been successfully logged out.",
+      status: "info",
+      duration: 3000,
+      isClosable: true,
+      position: "top-right",
+    });
+  };
+
+  /**
+   * Handles copying text to the clipboard and shows a success toast.
+   * @param {string} text - The text to copy.
+   */
+  const handleCopy = (text) => {
+    navigator.clipboard.writeText(text);
+    toast({
+      title: "Copied!",
+      description: "Scenario copied to clipboard.",
+      status: "success",
+      duration: 2000,
+      isClosable: true,
+      position: "top-right",
+    });
   };
 
   return (
@@ -74,13 +149,13 @@ const Home = () => {
       <NotificationModal
         isOpen={isModalOpen}
         onClose={handleModalClose}
-        updates={updates} // Pasa las actualizaciones al modal
+        updates={updates} // Pass updates to the modal
       />
 
       {/* Navbar */}
       <Navbar />
 
-      {/* Contenido principal */}
+      {/* Main Content */}
       <Flex flex="1" p={6} maxW="1200px" mx="auto" direction="column">
         <Center mb={8}>
           <Stack spacing={4} textAlign="center" alignItems="center">
@@ -101,9 +176,9 @@ const Home = () => {
           </Stack>
         </Center>
 
-        {/* Grid con tarjetas */}
+        {/* Grid with Cards */}
         <SimpleGrid columns={{ base: 1, md: 3 }} spacing={8}>
-          {/* Tarjeta 1 */}
+          {/* Card 1 - My HCL */}
           <Box
             bg="white"
             borderRadius="lg"
@@ -121,6 +196,7 @@ const Home = () => {
               as="a"
               href="https://hclo365.sharepoint.com/sites/MYHCLTech"
               target="_blank"
+              rel="noopener noreferrer"
               variant="solid"
               rightIcon={<FiExternalLink />}
             >
@@ -128,7 +204,7 @@ const Home = () => {
             </Button>
           </Box>
 
-          {/* Tarjeta 2 - Percipio Academy */}
+          {/* Card 2 - Percipio Academy */}
           <Box
             bg="white"
             borderRadius="lg"
@@ -146,6 +222,7 @@ const Home = () => {
               as="a"
               href="https://hclcontent.percipio.com/"
               target="_blank"
+              rel="noopener noreferrer"
               variant="solid"
               rightIcon={<FiExternalLink />}
             >
@@ -153,7 +230,7 @@ const Home = () => {
             </Button>
           </Box>
 
-          {/* Tarjeta 3 - Xbox Services */}
+          {/* Card 3 - Xbox Services */}
           <Box
             bg="white"
             borderRadius="lg"
@@ -171,6 +248,7 @@ const Home = () => {
               as="a"
               href="https://support.xbox.com/en-US/xbox-live-status"
               target="_blank"
+              rel="noopener noreferrer"
               variant="solid"
               rightIcon={<FiExternalLink />}
             >
@@ -178,7 +256,7 @@ const Home = () => {
             </Button>
           </Box>
 
-          {/* Tarjeta de Feedback */}
+          {/* Card 4 - Send Feedback */}
           <Box
             bg="white"
             borderRadius="lg"
@@ -204,7 +282,7 @@ const Home = () => {
             </Button>
           </Box>
 
-          {/* Tarjeta 5 - Console Certification */}
+          {/* Card 5 - Console Certification */}
           <Box
             bg="white"
             borderRadius="lg"
@@ -222,6 +300,7 @@ const Home = () => {
               as="a"
               href="https://learn.microsoft.com/en-us/gaming/gdk/_content/gc/policies/console/console-certification-requirements-and-tests"
               target="_blank"
+              rel="noopener noreferrer"
               variant="solid"
               rightIcon={<FiExternalLink />}
             >
@@ -229,7 +308,7 @@ const Home = () => {
             </Button>
           </Box>
 
-          {/* Tarjeta 6 - Game Guides */}
+          {/* Card 6 - Game Guides */}
           <Box
             bg="white"
             borderRadius="lg"
@@ -247,6 +326,7 @@ const Home = () => {
               as="a"
               href="https://www.gamerguides.com/"
               target="_blank"
+              rel="noopener noreferrer"
               variant="solid"
               rightIcon={<FiExternalLink />}
             >

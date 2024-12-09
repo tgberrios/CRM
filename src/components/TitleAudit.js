@@ -32,6 +32,11 @@ import {
   Tab,
   Badge,
   Icon,
+  Skeleton,
+  SkeletonText,
+  Tooltip,
+  HStack,
+  Progress,
 } from "@chakra-ui/react";
 import { useNavigate } from "react-router-dom";
 import { Bar } from "react-chartjs-2";
@@ -46,12 +51,16 @@ import {
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
 import { FaRegCalendarAlt, FaUser, FaBug } from "react-icons/fa";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 ChartJS.register(BarElement, CategoryScale, LinearScale, ChartTooltip, Legend);
 
 const TitleAudit = () => {
   const [audits, setAudits] = useState([]);
   const [selectedAudit, setSelectedAudit] = useState(null);
+  const [loading, setLoading] = useState(true);
+
   const navigate = useNavigate();
   const toast = useToast();
 
@@ -139,18 +148,28 @@ const TitleAudit = () => {
   };
 
   const loadAudits = async () => {
+    setLoading(true);
     try {
       const auditsData = await window.cert.loadAudits();
       const normalizedAudits = auditsData.map((audit) => ({
         ...audit,
         titlename: audit.titlename || "Untitled",
         nonCFRIssuesLogged: Number(audit.noncfrissueslogged || 0),
-        cfrIssuesLogged: Number(formData.cfrIssuesLogged || 0),
+        cfrIssuesLogged: Number(audit.cfrissueslogged || 0),
         totalCFRMissed: Number(audit.totalcfrmissed || 0),
       }));
       setAudits(normalizedAudits);
+      setLoading(false);
     } catch (error) {
       console.error("Error loading audits:", error);
+      toast({
+        title: "Error",
+        description: "There was an error loading the audits.",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+      setLoading(false);
     }
   };
 
@@ -163,7 +182,7 @@ const TitleAudit = () => {
     loadAudits();
   }, []);
 
-  // Calculate metrics for summary cards
+  // Calculate metrics
   const totalAudits = audits.length;
   const totalNonCFRIssues = audits.reduce(
     (sum, audit) => sum + Number(audit.nonCFRIssuesLogged || 0),
@@ -186,12 +205,12 @@ const TitleAudit = () => {
 
   // Function to generate colors based on value
   const getColorBasedOnValue = (value, maxValue) => {
-    const intensity = (value / maxValue) * 0.7 + 0.3; // Ensure the color is not too light
+    const intensity = (value / maxValue) * 0.7 + 0.3;
     return `rgba(54, 162, 235, ${intensity})`;
   };
 
-  // Get the maximum values for normalization
   const maxIssues = Math.max(
+    0,
     ...audits.map(
       (audit) =>
         Number(audit.nonCFRIssuesLogged || 0) +
@@ -200,10 +219,10 @@ const TitleAudit = () => {
   );
 
   const maxMissedCFR = Math.max(
+    0,
     ...audits.map((audit) => Number(audit.totalCFRMissed || 0))
   );
 
-  // Prepare data for charts
   const issuesBarChartData = {
     labels: audits.map((audit) => audit.titlename),
     datasets: [
@@ -238,7 +257,7 @@ const TitleAudit = () => {
   };
 
   const chartOptions = {
-    indexAxis: "y", // Makes the bars horizontal
+    indexAxis: "y",
     responsive: true,
     maintainAspectRatio: false,
     scales: {
@@ -248,15 +267,141 @@ const TitleAudit = () => {
     },
   };
 
+  // Export PDF
+  const handleExportPDF = async (audit) => {
+    try {
+      toast({
+        title: "Generating PDF",
+        description: "Please wait while the PDF is generated.",
+        status: "info",
+        duration: 2000,
+        isClosable: true,
+      });
+
+      // Esperar un poco (opcional), por si quieres obtener más datos
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      const pdf = new jsPDF();
+      pdf.setFontSize(18);
+      pdf.text("Audit Summary", 14, 22);
+
+      pdf.setFontSize(12);
+      pdf.text(`Title Name: ${audit.titlename}`, 14, 32);
+      pdf.text(`Submission Iteration: ${audit.submissioniteration}`, 14, 40);
+      pdf.text(`Generation: ${audit.generation}`, 14, 48);
+      pdf.text(`Test Date: ${audit.testDate}`, 14, 56);
+      pdf.text(`Lead: ${audit.lead}`, 14, 64);
+      pdf.text(`Testers: ${audit.testers}`, 14, 72);
+
+      pdf.setLineWidth(0.5);
+      pdf.line(14, 78, 200, 78);
+
+      const dataTable = [
+        ["Non-CFR Issues", audit.nonCFRIssuesLogged],
+        ["CFR Issues", audit.cfrIssuesLogged],
+        ["Total CFR Missed", audit.totalCFRMissed],
+      ];
+
+      pdf.autoTable({
+        startY: 80,
+        head: [["Metric", "Value"]],
+        body: dataTable,
+        theme: "grid",
+        styles: { fontSize: 10 },
+      });
+
+      let yPosition = pdf.lastAutoTable.finalY + 10;
+      if (yPosition > pdf.internal.pageSize.height - 20) {
+        pdf.addPage();
+        yPosition = 20;
+      }
+
+      // Action Items
+      pdf.setFontSize(14);
+      pdf.text("Action Items", 14, yPosition);
+      yPosition += 6;
+
+      if (audit.actionitems) {
+        // Para simplificar, si hay HTML, podemos extraer solo el texto
+        const doc = new DOMParser().parseFromString(
+          audit.actionitems,
+          "text/html"
+        );
+        const textContent = doc.body.textContent || "No action items recorded.";
+        const splittedText = pdf.splitTextToSize(textContent.trim(), 180);
+        pdf.setFontSize(10);
+        pdf.text(splittedText, 14, yPosition);
+        yPosition += splittedText.length * 5 + 10;
+      } else {
+        pdf.setFontSize(10);
+        pdf.text("No action items recorded.", 14, yPosition);
+        yPosition += 10;
+      }
+
+      if (yPosition > pdf.internal.pageSize.height - 20) {
+        pdf.addPage();
+        yPosition = 20;
+      }
+
+      // Bug Quality Tracking
+      pdf.setFontSize(14);
+      pdf.text("Bug Quality Tracking", 14, yPosition);
+      yPosition += 6;
+
+      if (audit.bugqualitytracking) {
+        const doc = new DOMParser().parseFromString(
+          audit.bugqualitytracking,
+          "text/html"
+        );
+        const textContent =
+          doc.body.textContent || "No bug quality tracking info.";
+        const splittedText = pdf.splitTextToSize(textContent.trim(), 180);
+        pdf.setFontSize(10);
+        pdf.text(splittedText, 14, yPosition);
+        yPosition += splittedText.length * 5 + 10;
+      } else {
+        pdf.setFontSize(10);
+        pdf.text("No bug quality tracking information.", 14, yPosition);
+        yPosition += 10;
+      }
+
+      pdf.save(`${audit.titlename}_Audit.pdf`);
+
+      toast({
+        title: "PDF Exported",
+        description: `${audit.titlename}_Audit.pdf has been downloaded.`,
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+    } catch (error) {
+      console.error("Error exporting PDF:", error);
+      toast({
+        title: "Error",
+        description: "There was an error exporting the PDF.",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+    }
+  };
+
   return (
     <Box display="flex" minHeight="100vh">
-      {/* Sidebar with the list of audits */}
+      {/* Sidebar */}
       <Box width="20%" bg="gray.50" p={5}>
         <Text fontSize="xl" mb={4} fontWeight="bold">
           Audit List
         </Text>
         <VStack align="start" spacing={4}>
-          {audits.length === 0 ? (
+          {loading ? (
+            [...Array(5)].map((_, i) => (
+              <Box key={i} p={4} bg="white" borderRadius="md" width="100%">
+                <Skeleton height="20px" mb={2} />
+                <Skeleton height="14px" />
+              </Box>
+            ))
+          ) : audits.length === 0 ? (
             <Text>No audits found</Text>
           ) : (
             audits.map((audit) => (
@@ -266,17 +411,28 @@ const TitleAudit = () => {
                 bg="white"
                 borderRadius="md"
                 width="100%"
-                cursor="pointer"
                 boxShadow="sm"
                 _hover={{ boxShadow: "md" }}
-                onClick={() => showAuditDetails(audit)}
               >
-                <Text fontWeight="bold" fontSize="md">
-                  {audit.titlename}
-                </Text>
-                <Text fontSize="sm" color="gray.600">
-                  {audit.testDate}
-                </Text>
+                <HStack justifyContent="space-between" alignItems="center">
+                  <Box cursor="pointer" onClick={() => showAuditDetails(audit)}>
+                    <Text fontWeight="bold" fontSize="md">
+                      {audit.titlename}
+                    </Text>
+                    <Text fontSize="sm" color="gray.600">
+                      {audit.testDate}
+                    </Text>
+                  </Box>
+                  <Tooltip label="Export to PDF">
+                    <Button
+                      size="sm"
+                      colorScheme="teal"
+                      onClick={() => handleExportPDF(audit)}
+                    >
+                      PDF
+                    </Button>
+                  </Tooltip>
+                </HStack>
               </Box>
             ))
           )}
@@ -289,7 +445,6 @@ const TitleAudit = () => {
             Add Audit
           </Button>
 
-          {/* Button to go to Home */}
           <Button
             colorScheme="gray"
             size="md"
@@ -303,90 +458,140 @@ const TitleAudit = () => {
 
       {/* Main content */}
       <Box flex="1" p={10} bg="gray.50">
-        {/* Audit Summary Cards */}
-        <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={6} mb={8}>
-          <Stat
-            p={5}
-            shadow="md"
-            borderWidth="1px"
-            borderRadius="md"
-            bg="white"
-          >
-            <StatLabel>Total Audits</StatLabel>
-            <StatNumber>{totalAudits}</StatNumber>
-          </Stat>
+        {/* Statistics */}
+        {loading ? (
+          <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={6} mb={8}>
+            {[...Array(4)].map((_, i) => (
+              <Box
+                p={5}
+                shadow="md"
+                borderWidth="1px"
+                borderRadius="md"
+                bg="white"
+                key={i}
+              >
+                <Skeleton height="20px" mb={3} />
+                <Skeleton height="28px" mb={2} />
+                <Skeleton height="16px" />
+              </Box>
+            ))}
+          </SimpleGrid>
+        ) : (
+          <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={6} mb={8}>
+            <Stat
+              p={5}
+              shadow="md"
+              borderWidth="1px"
+              borderRadius="md"
+              bg="white"
+            >
+              <StatLabel>Total Audits</StatLabel>
+              <StatNumber>{totalAudits}</StatNumber>
+            </Stat>
 
-          <Stat
-            p={5}
-            shadow="md"
-            borderWidth="1px"
-            borderRadius="md"
-            bg="white"
-          >
-            <StatLabel>Non-CFR Issues</StatLabel>
-            <StatNumber>{totalNonCFRIssues}</StatNumber>
-            <StatHelpText>
-              Average: {averageNonCFRPerAudit} per audit
-            </StatHelpText>
-          </Stat>
+            <Stat
+              p={5}
+              shadow="md"
+              borderWidth="1px"
+              borderRadius="md"
+              bg="white"
+            >
+              <StatLabel>Non-CFR Issues</StatLabel>
+              <StatNumber>{totalNonCFRIssues}</StatNumber>
+              <StatHelpText>
+                Average: {averageNonCFRPerAudit} per audit
+              </StatHelpText>
+            </Stat>
 
-          <Stat
-            p={5}
-            shadow="md"
-            borderWidth="1px"
-            borderRadius="md"
-            bg="white"
-          >
-            <StatLabel>CFR Issues Logged</StatLabel>
-            <StatNumber>{totalCFRIssues}</StatNumber>
-            <StatHelpText>Average: {averageCFRPerAudit} per audit</StatHelpText>
-          </Stat>
+            <Stat
+              p={5}
+              shadow="md"
+              borderWidth="1px"
+              borderRadius="md"
+              bg="white"
+            >
+              <StatLabel>CFR Issues Logged</StatLabel>
+              <StatNumber>{totalCFRIssues}</StatNumber>
+              <StatHelpText>
+                Average: {averageCFRPerAudit} per audit
+              </StatHelpText>
+            </Stat>
 
-          <Stat
-            p={5}
-            shadow="md"
-            borderWidth="1px"
-            borderRadius="md"
-            bg="white"
-          >
-            <StatLabel>Total Missed CFRs</StatLabel>
-            <StatNumber>{totalMissedCFR}</StatNumber>
-          </Stat>
-        </SimpleGrid>
+            <Stat
+              p={5}
+              shadow="md"
+              borderWidth="1px"
+              borderRadius="md"
+              bg="white"
+            >
+              <StatLabel>Total Missed CFRs</StatLabel>
+              <StatNumber>{totalMissedCFR}</StatNumber>
+            </Stat>
+          </SimpleGrid>
+        )}
 
-        {/* Charts Section */}
+        {/* Charts */}
         <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6} mb={8}>
-          <Box
-            bg="white"
-            p={5}
-            shadow="md"
-            borderWidth="1px"
-            borderRadius="md"
-            height="400px"
-          >
-            <Text fontSize="lg" mb={4} fontWeight="bold">
-              Issues by Title
-            </Text>
-            <Bar data={issuesBarChartData} options={chartOptions} />
-          </Box>
+          {loading ? (
+            <>
+              <Box
+                bg="white"
+                p={5}
+                shadow="md"
+                borderWidth="1px"
+                borderRadius="md"
+                height="400px"
+              >
+                <Skeleton height="20px" mb={4} />
+                <SkeletonText noOfLines={10} spacing="4" />
+              </Box>
+              <Box
+                bg="white"
+                p={5}
+                shadow="md"
+                borderWidth="1px"
+                borderRadius="md"
+                height="400px"
+              >
+                <Skeleton height="20px" mb={4} />
+                <SkeletonText noOfLines={10} spacing="4" />
+              </Box>
+            </>
+          ) : (
+            <>
+              <Box
+                bg="white"
+                p={5}
+                shadow="md"
+                borderWidth="1px"
+                borderRadius="md"
+                height="400px"
+              >
+                <Text fontSize="lg" mb={4} fontWeight="bold">
+                  Issues by Title
+                </Text>
+                <Bar data={issuesBarChartData} options={chartOptions} />
+              </Box>
 
-          <Box
-            bg="white"
-            p={5}
-            shadow="md"
-            borderWidth="1px"
-            borderRadius="md"
-            height="400px"
-          >
-            <Text fontSize="lg" mb={4} fontWeight="bold">
-              Missed CFRs by Title
-            </Text>
-            <Bar data={missedCFRChartData} options={chartOptions} />
-          </Box>
+              <Box
+                bg="white"
+                p={5}
+                shadow="md"
+                borderWidth="1px"
+                borderRadius="md"
+                height="400px"
+              >
+                <Text fontSize="lg" mb={4} fontWeight="bold">
+                  Missed CFRs by Title
+                </Text>
+                <Bar data={missedCFRChartData} options={chartOptions} />
+              </Box>
+            </>
+          )}
         </SimpleGrid>
       </Box>
 
-      {/* Enhanced Details Modal */}
+      {/* View Details Modal */}
       <Modal isOpen={isViewModalOpen} onClose={onViewModalClose} size="2xl">
         <ModalOverlay />
         <ModalContent>
@@ -401,7 +606,6 @@ const TitleAudit = () => {
                   <Tab>Bug Quality Tracking</Tab>
                 </TabList>
                 <TabPanels>
-                  {/* General Information */}
                   <TabPanel>
                     <Table variant="simple">
                       <Tbody>
@@ -463,7 +667,6 @@ const TitleAudit = () => {
                     </Table>
                   </TabPanel>
 
-                  {/* Action Items */}
                   <TabPanel>
                     {selectedAudit.actionitems ? (
                       <Box
@@ -478,7 +681,6 @@ const TitleAudit = () => {
                     )}
                   </TabPanel>
 
-                  {/* Bug Quality Tracking */}
                   <TabPanel>
                     {selectedAudit.bugqualitytracking ? (
                       <Box
@@ -508,7 +710,7 @@ const TitleAudit = () => {
         </ModalContent>
       </Modal>
 
-      {/* Modal to Add a New Audit */}
+      {/* Add Audit Modal */}
       <Modal isOpen={isAddModalOpen} onClose={onAddModalClose} size="xl">
         <ModalOverlay />
         <ModalContent>
@@ -518,7 +720,7 @@ const TitleAudit = () => {
             <FormControl id="titlename" isRequired>
               <FormLabel>Title Name</FormLabel>
               <Input
-                value={formData.titlename}
+                value={formData.titleName}
                 name="titleName"
                 onChange={handleInputChange}
                 placeholder="Enter the title name"
@@ -528,7 +730,7 @@ const TitleAudit = () => {
             <FormControl id="submissionIteration" mt={4} isRequired>
               <FormLabel>Submission Iteration</FormLabel>
               <Input
-                value={formData.submissioniteration}
+                value={formData.submissionIteration}
                 name="submissionIteration"
                 onChange={handleInputChange}
                 placeholder="Enter the submission iteration"
@@ -609,7 +811,7 @@ const TitleAudit = () => {
               <FormLabel>Action Items</FormLabel>
               <ReactQuill
                 theme="snow"
-                value={formData.actionitems}
+                value={formData.actionItems}
                 onChange={(value) => handleQuillChange("actionItems", value)}
                 style={{ height: "200px", marginBottom: "50px" }}
               />
@@ -619,7 +821,7 @@ const TitleAudit = () => {
               <FormLabel>Bug Quality Tracking</FormLabel>
               <ReactQuill
                 theme="snow"
-                value={formData.bugqualitytracking}
+                value={formData.bugQualityTracking}
                 onChange={(value) =>
                   handleQuillChange("bugQualityTracking", value)
                 }

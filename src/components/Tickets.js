@@ -1,3 +1,4 @@
+// TicketManager.jsx
 import React, { useState, useEffect } from "react";
 import {
   Box,
@@ -40,9 +41,93 @@ import {
   Th,
   Td,
   TableContainer,
+  Skeleton,
+  SkeletonText,
 } from "@chakra-ui/react";
 import { useNavigate } from "react-router-dom";
 import { AddIcon, ChevronDownIcon } from "@chakra-ui/icons";
+
+const CustomPagination = ({ currentPage, totalPages, onPageChange }) => {
+  const pageNumbers = [];
+
+  // Generate page numbers
+  for (let i = 1; i <= totalPages; i++) {
+    pageNumbers.push(i);
+  }
+
+  // Limit the number of displayed page buttons
+  const maxPageButtons = 5;
+  let startPage = 1;
+  let endPage = totalPages;
+
+  if (totalPages > maxPageButtons) {
+    const middle = Math.floor(maxPageButtons / 2);
+    if (currentPage <= middle) {
+      startPage = 1;
+      endPage = maxPageButtons;
+    } else if (currentPage + middle >= totalPages) {
+      startPage = totalPages - maxPageButtons + 1;
+      endPage = totalPages;
+    } else {
+      startPage = currentPage - middle;
+      endPage = currentPage + middle;
+    }
+  }
+
+  const visiblePages = pageNumbers.slice(startPage - 1, endPage);
+
+  return (
+    <HStack spacing={2} mt={4} justify="center">
+      <Button
+        onClick={() => onPageChange(currentPage - 1)}
+        isDisabled={currentPage === 1}
+        size="sm"
+        variant="ghost"
+      >
+        Previous
+      </Button>
+      {startPage > 1 && (
+        <>
+          <Button onClick={() => onPageChange(1)} size="sm" variant="ghost">
+            1
+          </Button>
+          {startPage > 2 && <Text>...</Text>}
+        </>
+      )}
+      {visiblePages.map((number) => (
+        <Button
+          key={number}
+          onClick={() => onPageChange(number)}
+          variant={number === currentPage ? "solid" : "ghost"}
+          colorScheme={number === currentPage ? "blue" : "gray"}
+          size="sm"
+        >
+          {number}
+        </Button>
+      ))}
+      {endPage < totalPages && (
+        <>
+          {endPage < totalPages - 1 && <Text>...</Text>}
+          <Button
+            onClick={() => onPageChange(totalPages)}
+            size="sm"
+            variant="ghost"
+          >
+            {totalPages}
+          </Button>
+        </>
+      )}
+      <Button
+        onClick={() => onPageChange(currentPage + 1)}
+        isDisabled={currentPage === totalPages}
+        size="sm"
+        variant="ghost"
+      >
+        Next
+      </Button>
+    </HStack>
+  );
+};
 
 const TicketManager = () => {
   const { isOpen, onOpen, onClose } = useDisclosure();
@@ -68,16 +153,16 @@ const TicketManager = () => {
     date: "",
   });
   const [formErrors, setFormErrors] = useState({});
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadTickets();
 
-    // Refresh tickets every minute
+    // Update tickets every minute
     const interval = setInterval(() => {
       loadTickets();
-    }, 60000); // 60000 milliseconds = 1 minute
+    }, 60000);
 
-    // Clean up interval on unmount
     return () => clearInterval(interval);
   }, []);
 
@@ -85,35 +170,37 @@ const TicketManager = () => {
     applyFilters();
   }, [filters, tickets, searchQuery]);
 
-  // Load tickets from the backend or data source
   const loadTickets = async () => {
     try {
+      setLoading(true);
       const ticketsData = await window.cert.getTickets();
       const formattedTickets = ticketsData.map((ticket) => ({
         ...ticket,
         date:
           typeof ticket.date === "string"
             ? ticket.date
-            : new Date(ticket.date).toISOString().split("T")[0], // Formatea la fecha como cadena
+            : new Date(ticket.date).toISOString().split("T")[0],
       }));
       setTickets(formattedTickets);
       setFilteredTickets(formattedTickets);
+      setLoading(false);
     } catch (error) {
       console.error("Error loading tickets:", error);
       toast({
         title: "Error",
-        description: "Hubo un error al cargar los tickets.",
+        description: "There was an error loading the tickets.",
         status: "error",
         duration: 3000,
         isClosable: true,
       });
+      setLoading(false);
     }
   };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
 
-    // Prevent changing the 'name' field
+    // Prevent changing 'name'
     if (name === "name") return;
 
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -127,6 +214,7 @@ const TicketManager = () => {
   const applyFilters = () => {
     const { status, priority, date } = filters;
     const filtered = tickets.filter((ticket) => {
+      // Exclude closed and resolved tickets from filters
       if (ticket.status === "Closed" || ticket.status === "Resolved")
         return false;
 
@@ -143,16 +231,13 @@ const TicketManager = () => {
     setFilteredTickets(filtered);
   };
 
-  // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Validate form data
     const errors = {};
-    if (!formData.category) errors.category = "La categoría es obligatoria";
-    if (!formData.description)
-      errors.description = "La descripción es obligatoria";
-    if (!formData.priority) errors.priority = "La prioridad es obligatoria";
+    if (!formData.category) errors.category = "Category is required";
+    if (!formData.description) errors.description = "Description is required";
+    if (!formData.priority) errors.priority = "Priority is required";
 
     setFormErrors(errors);
 
@@ -172,8 +257,8 @@ const TicketManager = () => {
       });
       onClose();
       toast({
-        title: "Nuevo Ticket Agregado",
-        description: `${formData.name} ha enviado un ticket en la categoría "${formData.category}" con prioridad "${formData.priority}".`,
+        title: "New Ticket Added",
+        description: `${formData.name} submitted a ticket in the "${formData.category}" category with "${formData.priority}" priority.`,
         status: "success",
         duration: 5000,
         isClosable: true,
@@ -182,7 +267,7 @@ const TicketManager = () => {
       console.error("Error adding ticket:", error);
       toast({
         title: "Error",
-        description: "Hubo un error al agregar el ticket.",
+        description: "There was an error adding the ticket.",
         status: "error",
         duration: 3000,
         isClosable: true,
@@ -190,21 +275,18 @@ const TicketManager = () => {
     }
   };
 
-  // Handle status change and update in the database
   const handleStatusChange = async (ticketId, newStatus) => {
     try {
-      // Update the ticket in the backend (database)
       await window.cert.updateTicketStatus(ticketId, newStatus);
 
-      // Update local state to reflect the new status
       const updatedTickets = tickets.map((ticket) =>
         ticket.id === ticketId ? { ...ticket, status: newStatus } : ticket
       );
       setTickets(updatedTickets);
       applyFilters();
       toast({
-        title: "Estado Actualizado",
-        description: `El estado del ticket ha sido cambiado a "${newStatus}".`,
+        title: "Status Updated",
+        description: `The ticket status has been changed to "${newStatus}".`,
         status: "info",
         duration: 3000,
         isClosable: true,
@@ -213,7 +295,7 @@ const TicketManager = () => {
       console.error("Error updating ticket status:", error);
       toast({
         title: "Error",
-        description: "Hubo un error al actualizar el estado del ticket.",
+        description: "There was an error updating the ticket status.",
         status: "error",
         duration: 3000,
         isClosable: true,
@@ -221,14 +303,12 @@ const TicketManager = () => {
     }
   };
 
-  // Get color based on the ticket count
   const getColorBasedOnCount = (count) => {
     if (count > 10) return "red.500";
     if (count > 5) return "yellow.500";
     return "green.500";
   };
 
-  // Get Badge based on priority
   const getPriorityBadge = (priority) => {
     switch (priority) {
       case "Critical":
@@ -244,7 +324,6 @@ const TicketManager = () => {
     }
   };
 
-  // Calculate statistics
   const totalTickets = tickets.length;
   const openTickets = tickets.filter(
     (ticket) => ticket.status === "Open"
@@ -259,7 +338,6 @@ const TicketManager = () => {
     (ticket) => ticket.status === "Resolved"
   ).length;
 
-  // New state statistics
   const onTransitTickets = tickets.filter(
     (ticket) => ticket.status === "On Transit"
   ).length;
@@ -283,12 +361,10 @@ const TicketManager = () => {
     (ticket) => ticket.priority === "Low"
   ).length;
 
-  // Function to filter tickets by category
   const filterByCategory = (category) => {
     return filteredTickets.filter((ticket) => ticket.category === category);
   };
 
-  // Function to get closed tickets for Logs tab
   const getClosedTickets = () => {
     return tickets.filter(
       (ticket) => ticket.status === "Closed" || ticket.status === "Resolved"
@@ -296,24 +372,29 @@ const TicketManager = () => {
   };
 
   return (
-    <Box display="flex" minH="100vh">
+    <Box display="flex" minH="100vh" fontSize="sm">
       {/* Sidebar */}
       <Box
-        w="20%"
+        w="300px"
         bg="gray.100"
-        p={4}
+        p={6}
         borderRight="1px"
         borderColor="gray.200"
         display="flex"
         flexDirection="column"
+        position="fixed"
+        top={0}
+        left={0}
+        bottom={0}
+        overflowY="auto"
       >
-        <Heading as="h1" size="lg" mb={6}>
+        <Heading as="h1" size="lg" mb={6} color="gray.700" textAlign="center">
           Ticket Manager
         </Heading>
 
         {/* Search Input */}
         <Input
-          placeholder="Buscar tickets..."
+          placeholder="Search tickets..."
           mb={4}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
@@ -321,27 +402,25 @@ const TicketManager = () => {
 
         {/* Filters */}
         <Heading as="h2" size="md" mb={4}>
-          Filtros
+          Filters
         </Heading>
 
         <Select
-          placeholder="Filtrar por estado"
+          placeholder="Filter by status"
           name="status"
           onChange={handleFilterChange}
           mb={4}
         >
           <option value="Open">Open</option>
           <option value="In Progress">In Progress</option>
-          {/* Removed 'Closed' from filter options to prevent displaying closed tickets */}
           <option value="Resolved">Resolved</option>
-          {/* New status options */}
           <option value="On Transit">On Transit</option>
           <option value="Delivered">Delivered</option>
           <option value="Storage">Storage</option>
         </Select>
 
         <Select
-          placeholder="Filtrar por prioridad"
+          placeholder="Filter by priority"
           name="priority"
           onChange={handleFilterChange}
           mb={4}
@@ -356,7 +435,7 @@ const TicketManager = () => {
           type="date"
           name="date"
           onChange={handleFilterChange}
-          placeholder="Filtrar por fecha"
+          placeholder="Filter by date"
           mb={4}
         />
 
@@ -366,22 +445,21 @@ const TicketManager = () => {
           onClick={onOpen}
           leftIcon={<AddIcon />}
         >
-          Nuevo Ticket
+          New Ticket
         </Button>
 
-        {/* Button to navigate to Home */}
         <Button
           colorScheme="gray"
           w="full"
           mt={2}
           onClick={() => navigate("/Home")}
         >
-          Ir a Home
+          Go to Home
         </Button>
       </Box>
 
       {/* Main Content */}
-      <Box flex="1" p={6} bg="gray.50">
+      <Box ml="300px" p={6} bg="gray.50" w="100%">
         {/* Statistics */}
         <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={6} mb={6}>
           <Stat
@@ -408,7 +486,6 @@ const TicketManager = () => {
             <StatNumber>{inProgressTickets}</StatNumber>
           </Stat>
 
-          {/* New status statistics */}
           <Stat
             p={5}
             shadow="md"
@@ -434,359 +511,412 @@ const TicketManager = () => {
           </Stat>
         </SimpleGrid>
 
-        {/* Tabs for General, Asset Request, Console Movements, and Logs */}
+        {/* Tabs */}
         <Tabs variant="enclosed" colorScheme="blue" isFitted>
           <TabList mb="1em">
             <Tab>General</Tab>
             <Tab>Asset Request</Tab>
             <Tab>Console Movements</Tab>
-            <Tab>Logs</Tab> {/* New Logs Tab */}
+            <Tab>Logs</Tab>
           </TabList>
           <TabPanels>
             {/* General Tab */}
             <TabPanel>
               <Heading as="h2" size="md" mb={4}>
-                Todos los Tickets
+                All Tickets
               </Heading>
-              {/* List of General Tickets */}
-              <SimpleGrid columns={[1, 2, 3]} spacing={4}>
-                {filteredTickets.length > 0 ? (
-                  filteredTickets.map((ticket) => (
+              {loading ? (
+                <SimpleGrid columns={[1, 2, 3]} spacing={4}>
+                  {[...Array(6)].map((_, i) => (
                     <Box
-                      key={ticket.id}
+                      key={i}
                       p={4}
                       borderWidth="1px"
                       borderRadius="lg"
                       boxShadow="md"
                       bg="white"
-                      _hover={{ boxShadow: "lg", transition: "all 0.3s ease" }}
                     >
-                      <HStack justifyContent="space-between" mb={3}>
-                        <Heading as="h3" size="md">
-                          {ticket.name}
-                        </Heading>
-                        {getPriorityBadge(ticket.priority)}
-                      </HStack>
-
-                      <Text fontSize="sm">
-                        <strong>Categoría:</strong> {ticket.category}
-                      </Text>
-                      <Text fontSize="sm" noOfLines={2}>
-                        <strong>Descripción:</strong> {ticket.description}
-                      </Text>
-                      <Text fontSize="sm">
-                        <strong>Estado:</strong>{" "}
-                        <Badge colorScheme="blue">{ticket.status}</Badge>
-                      </Text>
-                      <Text fontSize="sm">
-                        <strong>Fecha:</strong> {ticket.date}
-                      </Text>
-                      <Text fontSize="sm">
-                        <strong>Usuario:</strong> {ticket.username}
-                      </Text>
-
-                      {/* Dropdown to change status */}
-                      <Menu>
-                        <MenuButton
-                          as={Button}
-                          rightIcon={<ChevronDownIcon />}
-                          mt={4}
-                          size="sm"
-                          colorScheme="blue"
-                        >
-                          Cambiar Estado
-                        </MenuButton>
-                        <MenuList>
-                          <MenuItem
-                            onClick={() =>
-                              handleStatusChange(ticket.id, "Open")
-                            }
-                          >
-                            Open
-                          </MenuItem>
-                          <MenuItem
-                            onClick={() =>
-                              handleStatusChange(ticket.id, "In Progress")
-                            }
-                          >
-                            In Progress
-                          </MenuItem>
-                          <MenuItem
-                            onClick={() =>
-                              handleStatusChange(ticket.id, "Closed")
-                            }
-                          >
-                            Closed
-                          </MenuItem>
-                          <MenuItem
-                            onClick={() =>
-                              handleStatusChange(ticket.id, "Resolved")
-                            }
-                          >
-                            Resolved
-                          </MenuItem>
-                          {/* New status options */}
-                          <MenuItem
-                            onClick={() =>
-                              handleStatusChange(ticket.id, "On Transit")
-                            }
-                          >
-                            On Transit
-                          </MenuItem>
-                          <MenuItem
-                            onClick={() =>
-                              handleStatusChange(ticket.id, "Delivered")
-                            }
-                          >
-                            Delivered
-                          </MenuItem>
-                          <MenuItem
-                            onClick={() =>
-                              handleStatusChange(ticket.id, "Storage")
-                            }
-                          >
-                            Storage
-                          </MenuItem>
-                        </MenuList>
-                      </Menu>
+                      <Skeleton height="20px" mb={3} />
+                      <SkeletonText noOfLines={4} spacing="4" />
+                      <Skeleton height="30px" mt={4} />
                     </Box>
-                  ))
-                ) : (
-                  <Text>No se encontraron tickets.</Text>
-                )}
-              </SimpleGrid>
+                  ))}
+                </SimpleGrid>
+              ) : (
+                <SimpleGrid columns={[1, 2, 3]} spacing={4}>
+                  {filteredTickets.length > 0 ? (
+                    filteredTickets.map((ticket) => (
+                      <Box
+                        key={ticket.id}
+                        p={4}
+                        borderWidth="1px"
+                        borderRadius="lg"
+                        boxShadow="md"
+                        bg="white"
+                        _hover={{
+                          boxShadow: "lg",
+                          transition: "all 0.3s ease",
+                        }}
+                      >
+                        <HStack justifyContent="space-between" mb={3}>
+                          <Heading as="h3" size="md">
+                            {ticket.name}
+                          </Heading>
+                          {getPriorityBadge(ticket.priority)}
+                        </HStack>
+
+                        <Text fontSize="sm">
+                          <strong>Category:</strong> {ticket.category}
+                        </Text>
+                        <Text fontSize="sm" noOfLines={2}>
+                          <strong>Description:</strong> {ticket.description}
+                        </Text>
+                        <Text fontSize="sm">
+                          <strong>Status:</strong>{" "}
+                          <Badge colorScheme="blue">{ticket.status}</Badge>
+                        </Text>
+                        <Text fontSize="sm">
+                          <strong>Date:</strong> {ticket.date}
+                        </Text>
+                        <Text fontSize="sm">
+                          <strong>User:</strong> {ticket.username}
+                        </Text>
+
+                        <Menu>
+                          <MenuButton
+                            as={Button}
+                            rightIcon={<ChevronDownIcon />}
+                            mt={4}
+                            size="sm"
+                            colorScheme="blue"
+                          >
+                            Change Status
+                          </MenuButton>
+                          <MenuList>
+                            <MenuItem
+                              onClick={() =>
+                                handleStatusChange(ticket.id, "Open")
+                              }
+                            >
+                              Open
+                            </MenuItem>
+                            <MenuItem
+                              onClick={() =>
+                                handleStatusChange(ticket.id, "In Progress")
+                              }
+                            >
+                              In Progress
+                            </MenuItem>
+                            <MenuItem
+                              onClick={() =>
+                                handleStatusChange(ticket.id, "Closed")
+                              }
+                            >
+                              Closed
+                            </MenuItem>
+                            <MenuItem
+                              onClick={() =>
+                                handleStatusChange(ticket.id, "Resolved")
+                              }
+                            >
+                              Resolved
+                            </MenuItem>
+                            <MenuItem
+                              onClick={() =>
+                                handleStatusChange(ticket.id, "On Transit")
+                              }
+                            >
+                              On Transit
+                            </MenuItem>
+                            <MenuItem
+                              onClick={() =>
+                                handleStatusChange(ticket.id, "Delivered")
+                              }
+                            >
+                              Delivered
+                            </MenuItem>
+                            <MenuItem
+                              onClick={() =>
+                                handleStatusChange(ticket.id, "Storage")
+                              }
+                            >
+                              Storage
+                            </MenuItem>
+                          </MenuList>
+                        </Menu>
+                      </Box>
+                    ))
+                  ) : (
+                    <Text>No tickets found.</Text>
+                  )}
+                </SimpleGrid>
+              )}
             </TabPanel>
 
             {/* Asset Request Tab */}
             <TabPanel>
               <Heading as="h2" size="md" mb={4}>
-                Tickets de Solicitud de Activos
+                Asset Request Tickets
               </Heading>
-              {/* List of Asset Request Tickets */}
-              <SimpleGrid columns={[1, 2, 3]} spacing={4}>
-                {filterByCategory("Asset Request").length > 0 ? (
-                  filterByCategory("Asset Request").map((ticket) => (
+              {loading ? (
+                <SimpleGrid columns={[1, 2, 3]} spacing={4}>
+                  {[...Array(6)].map((_, i) => (
                     <Box
-                      key={ticket.id}
+                      key={i}
                       p={4}
                       borderWidth="1px"
                       borderRadius="lg"
                       boxShadow="md"
                       bg="white"
-                      _hover={{ boxShadow: "lg", transition: "all 0.3s ease" }}
                     >
-                      <HStack justifyContent="space-between" mb={3}>
-                        <Heading as="h3" size="md">
-                          {ticket.name}
-                        </Heading>
-                        {getPriorityBadge(ticket.priority)}
-                      </HStack>
-
-                      <Text fontSize="sm">
-                        <strong>Categoría:</strong> {ticket.category}
-                      </Text>
-                      <Text fontSize="sm" noOfLines={2}>
-                        <strong>Descripción:</strong> {ticket.description}
-                      </Text>
-                      <Text fontSize="sm">
-                        <strong>Estado:</strong>{" "}
-                        <Badge colorScheme="blue">{ticket.status}</Badge>
-                      </Text>
-                      <Text fontSize="sm">
-                        <strong>Fecha:</strong> {ticket.date}
-                      </Text>
-                      <Text fontSize="sm">
-                        <strong>Usuario:</strong> {ticket.username}
-                      </Text>
-
-                      {/* Dropdown to change status */}
-                      <Menu>
-                        <MenuButton
-                          as={Button}
-                          rightIcon={<ChevronDownIcon />}
-                          mt={4}
-                          size="sm"
-                          colorScheme="blue"
-                        >
-                          Cambiar Estado
-                        </MenuButton>
-                        <MenuList>
-                          <MenuItem
-                            onClick={() =>
-                              handleStatusChange(ticket.id, "Open")
-                            }
-                          >
-                            Open
-                          </MenuItem>
-                          <MenuItem
-                            onClick={() =>
-                              handleStatusChange(ticket.id, "In Progress")
-                            }
-                          >
-                            In Progress
-                          </MenuItem>
-                          <MenuItem
-                            onClick={() =>
-                              handleStatusChange(ticket.id, "Closed")
-                            }
-                          >
-                            Closed
-                          </MenuItem>
-                          <MenuItem
-                            onClick={() =>
-                              handleStatusChange(ticket.id, "Resolved")
-                            }
-                          >
-                            Resolved
-                          </MenuItem>
-                          {/* New status options */}
-                          <MenuItem
-                            onClick={() =>
-                              handleStatusChange(ticket.id, "On Transit")
-                            }
-                          >
-                            On Transit
-                          </MenuItem>
-                          <MenuItem
-                            onClick={() =>
-                              handleStatusChange(ticket.id, "Delivered")
-                            }
-                          >
-                            Delivered
-                          </MenuItem>
-                          <MenuItem
-                            onClick={() =>
-                              handleStatusChange(ticket.id, "Storage")
-                            }
-                          >
-                            Storage
-                          </MenuItem>
-                        </MenuList>
-                      </Menu>
+                      <Skeleton height="20px" mb={3} />
+                      <SkeletonText noOfLines={4} spacing="4" />
+                      <Skeleton height="30px" mt={4} />
                     </Box>
-                  ))
-                ) : (
-                  <Text>
-                    No se encontraron tickets de solicitud de activos.
-                  </Text>
-                )}
-              </SimpleGrid>
+                  ))}
+                </SimpleGrid>
+              ) : (
+                <SimpleGrid columns={[1, 2, 3]} spacing={4}>
+                  {filterByCategory("Asset Request").length > 0 ? (
+                    filterByCategory("Asset Request").map((ticket) => (
+                      <Box
+                        key={ticket.id}
+                        p={4}
+                        borderWidth="1px"
+                        borderRadius="lg"
+                        boxShadow="md"
+                        bg="white"
+                        _hover={{
+                          boxShadow: "lg",
+                          transition: "all 0.3s ease",
+                        }}
+                      >
+                        <HStack justifyContent="space-between" mb={3}>
+                          <Heading as="h3" size="md">
+                            {ticket.name}
+                          </Heading>
+                          {getPriorityBadge(ticket.priority)}
+                        </HStack>
+
+                        <Text fontSize="sm">
+                          <strong>Category:</strong> {ticket.category}
+                        </Text>
+                        <Text fontSize="sm" noOfLines={2}>
+                          <strong>Description:</strong> {ticket.description}
+                        </Text>
+                        <Text fontSize="sm">
+                          <strong>Status:</strong>{" "}
+                          <Badge colorScheme="blue">{ticket.status}</Badge>
+                        </Text>
+                        <Text fontSize="sm">
+                          <strong>Date:</strong> {ticket.date}
+                        </Text>
+                        <Text fontSize="sm">
+                          <strong>User:</strong> {ticket.username}
+                        </Text>
+
+                        <Menu>
+                          <MenuButton
+                            as={Button}
+                            rightIcon={<ChevronDownIcon />}
+                            mt={4}
+                            size="sm"
+                            colorScheme="blue"
+                          >
+                            Change Status
+                          </MenuButton>
+                          <MenuList>
+                            <MenuItem
+                              onClick={() =>
+                                handleStatusChange(ticket.id, "Open")
+                              }
+                            >
+                              Open
+                            </MenuItem>
+                            <MenuItem
+                              onClick={() =>
+                                handleStatusChange(ticket.id, "In Progress")
+                              }
+                            >
+                              In Progress
+                            </MenuItem>
+                            <MenuItem
+                              onClick={() =>
+                                handleStatusChange(ticket.id, "Closed")
+                              }
+                            >
+                              Closed
+                            </MenuItem>
+                            <MenuItem
+                              onClick={() =>
+                                handleStatusChange(ticket.id, "Resolved")
+                              }
+                            >
+                              Resolved
+                            </MenuItem>
+                            <MenuItem
+                              onClick={() =>
+                                handleStatusChange(ticket.id, "On Transit")
+                              }
+                            >
+                              On Transit
+                            </MenuItem>
+                            <MenuItem
+                              onClick={() =>
+                                handleStatusChange(ticket.id, "Delivered")
+                              }
+                            >
+                              Delivered
+                            </MenuItem>
+                            <MenuItem
+                              onClick={() =>
+                                handleStatusChange(ticket.id, "Storage")
+                              }
+                            >
+                              Storage
+                            </MenuItem>
+                          </MenuList>
+                        </Menu>
+                      </Box>
+                    ))
+                  ) : (
+                    <Text>No asset request tickets found.</Text>
+                  )}
+                </SimpleGrid>
+              )}
             </TabPanel>
 
             {/* Console Movements Tab */}
             <TabPanel>
               <Heading as="h2" size="md" mb={4}>
-                Tickets de Movimientos de Consolas
+                Console Movement Tickets
               </Heading>
-              {/* List of Console Movements Tickets */}
-              <SimpleGrid columns={[1, 2, 3]} spacing={4}>
-                {filterByCategory("Console Movement").length > 0 ? (
-                  filterByCategory("Console Movement").map((ticket) => (
+              {loading ? (
+                <SimpleGrid columns={[1, 2, 3]} spacing={4}>
+                  {[...Array(6)].map((_, i) => (
                     <Box
-                      key={ticket.id}
+                      key={i}
                       p={4}
                       borderWidth="1px"
                       borderRadius="lg"
                       boxShadow="md"
                       bg="white"
-                      _hover={{ boxShadow: "lg", transition: "all 0.3s ease" }}
                     >
-                      <HStack justifyContent="space-between" mb={3}>
-                        <Heading as="h3" size="md">
-                          {ticket.name}
-                        </Heading>
-                        {getPriorityBadge(ticket.priority)}
-                      </HStack>
-
-                      <Text fontSize="sm">
-                        <strong>Categoría:</strong> {ticket.category}
-                      </Text>
-                      <Text fontSize="sm" noOfLines={2}>
-                        <strong>Descripción:</strong> {ticket.description}
-                      </Text>
-                      <Text fontSize="sm">
-                        <strong>Estado:</strong>{" "}
-                        <Badge colorScheme="blue">{ticket.status}</Badge>
-                      </Text>
-                      <Text fontSize="sm">
-                        <strong>Fecha:</strong> {ticket.date}
-                      </Text>
-                      <Text fontSize="sm">
-                        <strong>Usuario:</strong> {ticket.username}
-                      </Text>
-
-                      {/* Dropdown to change status */}
-                      <Menu>
-                        <MenuButton
-                          as={Button}
-                          rightIcon={<ChevronDownIcon />}
-                          mt={4}
-                          size="sm"
-                          colorScheme="blue"
-                        >
-                          Cambiar Estado
-                        </MenuButton>
-                        <MenuList>
-                          <MenuItem
-                            onClick={() =>
-                              handleStatusChange(ticket.id, "Open")
-                            }
-                          >
-                            Open
-                          </MenuItem>
-                          <MenuItem
-                            onClick={() =>
-                              handleStatusChange(ticket.id, "In Progress")
-                            }
-                          >
-                            In Progress
-                          </MenuItem>
-                          <MenuItem
-                            onClick={() =>
-                              handleStatusChange(ticket.id, "Closed")
-                            }
-                          >
-                            Closed
-                          </MenuItem>
-                          <MenuItem
-                            onClick={() =>
-                              handleStatusChange(ticket.id, "Resolved")
-                            }
-                          >
-                            Resolved
-                          </MenuItem>
-                          {/* New status options */}
-                          <MenuItem
-                            onClick={() =>
-                              handleStatusChange(ticket.id, "On Transit")
-                            }
-                          >
-                            On Transit
-                          </MenuItem>
-                          <MenuItem
-                            onClick={() =>
-                              handleStatusChange(ticket.id, "Delivered")
-                            }
-                          >
-                            Delivered
-                          </MenuItem>
-                          <MenuItem
-                            onClick={() =>
-                              handleStatusChange(ticket.id, "Storage")
-                            }
-                          >
-                            Storage
-                          </MenuItem>
-                        </MenuList>
-                      </Menu>
+                      <Skeleton height="20px" mb={3} />
+                      <SkeletonText noOfLines={4} spacing="4" />
+                      <Skeleton height="30px" mt={4} />
                     </Box>
-                  ))
-                ) : (
-                  <Text>
-                    No se encontraron tickets de movimientos de consolas.
-                  </Text>
-                )}
-              </SimpleGrid>
+                  ))}
+                </SimpleGrid>
+              ) : (
+                <SimpleGrid columns={[1, 2, 3]} spacing={4}>
+                  {filterByCategory("Console Movement").length > 0 ? (
+                    filterByCategory("Console Movement").map((ticket) => (
+                      <Box
+                        key={ticket.id}
+                        p={4}
+                        borderWidth="1px"
+                        borderRadius="lg"
+                        boxShadow="md"
+                        bg="white"
+                        _hover={{
+                          boxShadow: "lg",
+                          transition: "all 0.3s ease",
+                        }}
+                      >
+                        <HStack justifyContent="space-between" mb={3}>
+                          <Heading as="h3" size="md">
+                            {ticket.name}
+                          </Heading>
+                          {getPriorityBadge(ticket.priority)}
+                        </HStack>
+
+                        <Text fontSize="sm">
+                          <strong>Category:</strong> {ticket.category}
+                        </Text>
+                        <Text fontSize="sm" noOfLines={2}>
+                          <strong>Description:</strong> {ticket.description}
+                        </Text>
+                        <Text fontSize="sm">
+                          <strong>Status:</strong>{" "}
+                          <Badge colorScheme="blue">{ticket.status}</Badge>
+                        </Text>
+                        <Text fontSize="sm">
+                          <strong>Date:</strong> {ticket.date}
+                        </Text>
+                        <Text fontSize="sm">
+                          <strong>User:</strong> {ticket.username}
+                        </Text>
+
+                        <Menu>
+                          <MenuButton
+                            as={Button}
+                            rightIcon={<ChevronDownIcon />}
+                            mt={4}
+                            size="sm"
+                            colorScheme="blue"
+                          >
+                            Change Status
+                          </MenuButton>
+                          <MenuList>
+                            <MenuItem
+                              onClick={() =>
+                                handleStatusChange(ticket.id, "Open")
+                              }
+                            >
+                              Open
+                            </MenuItem>
+                            <MenuItem
+                              onClick={() =>
+                                handleStatusChange(ticket.id, "In Progress")
+                              }
+                            >
+                              In Progress
+                            </MenuItem>
+                            <MenuItem
+                              onClick={() =>
+                                handleStatusChange(ticket.id, "Closed")
+                              }
+                            >
+                              Closed
+                            </MenuItem>
+                            <MenuItem
+                              onClick={() =>
+                                handleStatusChange(ticket.id, "Resolved")
+                              }
+                            >
+                              Resolved
+                            </MenuItem>
+                            <MenuItem
+                              onClick={() =>
+                                handleStatusChange(ticket.id, "On Transit")
+                              }
+                            >
+                              On Transit
+                            </MenuItem>
+                            <MenuItem
+                              onClick={() =>
+                                handleStatusChange(ticket.id, "Delivered")
+                              }
+                            >
+                              Delivered
+                            </MenuItem>
+                            <MenuItem
+                              onClick={() =>
+                                handleStatusChange(ticket.id, "Storage")
+                              }
+                            >
+                              Storage
+                            </MenuItem>
+                          </MenuList>
+                        </Menu>
+                      </Box>
+                    ))
+                  ) : (
+                    <Text>No console movement tickets found.</Text>
+                  )}
+                </SimpleGrid>
+              )}
             </TabPanel>
 
             {/* Logs Tab */}
@@ -794,85 +924,103 @@ const TicketManager = () => {
               <Heading as="h2" size="md" mb={4}>
                 Logs
               </Heading>
-              {/* List of Closed Tickets in Table Format */}
-              <TableContainer>
-                <Table variant="simple">
-                  <Thead>
-                    <Tr>
-                      <Th>Nombre del Ticket</Th>
-                      <Th>Categoría</Th>
-                      <Th>Prioridad</Th>
-                      <Th>Estado</Th>
-                      <Th>Fecha</Th>
-                      <Th>Usuario</Th>
-                    </Tr>
-                  </Thead>
-                  <Tbody>
-                    {getClosedTickets().length > 0 ? (
-                      getClosedTickets().map((ticket) => (
-                        <Tr key={ticket.id}>
-                          <Td>{ticket.name}</Td>
-                          <Td>{ticket.category}</Td>
-                          <Td>
-                            <Badge
-                              colorScheme={
-                                ticket.priority === "Critical"
-                                  ? "red"
-                                  : ticket.priority === "High"
-                                  ? "orange"
-                                  : ticket.priority === "Medium"
-                                  ? "yellow"
-                                  : "green"
-                              }
-                            >
-                              {ticket.priority}
-                            </Badge>
-                          </Td>
-                          <Td>
-                            <Badge colorScheme="green">{ticket.status}</Badge>
-                          </Td>
-                          <Td>{ticket.date}</Td>
-                          <Td>{ticket.username}</Td>
-                        </Tr>
-                      ))
-                    ) : (
+              {loading ? (
+                <SimpleGrid columns={[1]} spacing={4}>
+                  {[...Array(3)].map((_, i) => (
+                    <Box
+                      key={i}
+                      p={4}
+                      borderWidth="1px"
+                      borderRadius="lg"
+                      boxShadow="md"
+                      bg="white"
+                    >
+                      <Skeleton height="20px" mb={3} />
+                      <Skeleton height="20px" mb={3} />
+                      <Skeleton height="20px" mb={3} />
+                      <Skeleton height="20px" mb={3} />
+                    </Box>
+                  ))}
+                </SimpleGrid>
+              ) : (
+                <TableContainer>
+                  <Table variant="simple">
+                    <Thead>
                       <Tr>
-                        <Td colSpan={6} textAlign="center">
-                          No hay logs disponibles.
-                        </Td>
+                        <Th>Ticket Name</Th>
+                        <Th>Category</Th>
+                        <Th>Priority</Th>
+                        <Th>Status</Th>
+                        <Th>Date</Th>
+                        <Th>User</Th>
                       </Tr>
-                    )}
-                  </Tbody>
-                </Table>
-              </TableContainer>
+                    </Thead>
+                    <Tbody>
+                      {getClosedTickets().length > 0 ? (
+                        getClosedTickets().map((ticket) => (
+                          <Tr key={ticket.id}>
+                            <Td>{ticket.name}</Td>
+                            <Td>{ticket.category}</Td>
+                            <Td>
+                              <Badge
+                                colorScheme={
+                                  ticket.priority === "Critical"
+                                    ? "red"
+                                    : ticket.priority === "High"
+                                    ? "orange"
+                                    : ticket.priority === "Medium"
+                                    ? "yellow"
+                                    : "green"
+                                }
+                              >
+                                {ticket.priority}
+                              </Badge>
+                            </Td>
+                            <Td>
+                              <Badge colorScheme="green">{ticket.status}</Badge>
+                            </Td>
+                            <Td>{ticket.date}</Td>
+                            <Td>{ticket.username}</Td>
+                          </Tr>
+                        ))
+                      ) : (
+                        <Tr>
+                          <Td colSpan={6} textAlign="center">
+                            No logs available.
+                          </Td>
+                        </Tr>
+                      )}
+                    </Tbody>
+                  </Table>
+                </TableContainer>
+              )}
             </TabPanel>
           </TabPanels>
         </Tabs>
       </Box>
 
-      {/* Form in Drawer */}
+      {/* Drawer for Adding Tickets */}
       <Drawer isOpen={isOpen} placement="right" onClose={onClose}>
         <DrawerContent>
           <DrawerCloseButton />
-          <DrawerHeader>Agregar Ticket</DrawerHeader>
+          <DrawerHeader>Add Ticket</DrawerHeader>
 
           <DrawerBody>
             <form id="add-ticket-form" onSubmit={handleSubmit}>
-              {/* Display 'Name' field as read-only */}
               <FormControl mb={4}>
-                <FormLabel>Nombre</FormLabel>
+                <FormLabel>Name</FormLabel>
                 <Input
-                  placeholder="Nombre"
+                  placeholder="Name"
                   name="name"
                   value={formData.name}
                   isReadOnly
                 />
               </FormControl>
 
-              <FormControl isInvalid={formErrors.category} mb={4}>
-                <FormLabel>Categoría</FormLabel>
+              <FormControl isInvalid={formErrors.category} mb={4} isRequired>
+                <FormLabel>Category</FormLabel>
                 <Select
-                  placeholder="Selecciona una categoría"
+                  placeholder="Select a category"
                   name="category"
                   value={formData.category}
                   onChange={handleInputChange}
@@ -892,10 +1040,10 @@ const TicketManager = () => {
                 )}
               </FormControl>
 
-              <FormControl isInvalid={formErrors.description} mb={4}>
-                <FormLabel>Descripción</FormLabel>
+              <FormControl isInvalid={formErrors.description} mb={4} isRequired>
+                <FormLabel>Description</FormLabel>
                 <Textarea
-                  placeholder="Descripción"
+                  placeholder="Description"
                   name="description"
                   value={formData.description}
                   onChange={handleInputChange}
@@ -905,10 +1053,10 @@ const TicketManager = () => {
                 )}
               </FormControl>
 
-              <FormControl isInvalid={formErrors.priority} mb={4}>
-                <FormLabel>Prioridad</FormLabel>
+              <FormControl isInvalid={formErrors.priority} mb={4} isRequired>
+                <FormLabel>Priority</FormLabel>
                 <Select
-                  placeholder="Selecciona la prioridad"
+                  placeholder="Select a priority"
                   name="priority"
                   value={formData.priority}
                   onChange={handleInputChange}
@@ -924,9 +1072,9 @@ const TicketManager = () => {
               </FormControl>
 
               <FormControl mb={4}>
-                <FormLabel>Estado</FormLabel>
+                <FormLabel>Status</FormLabel>
                 <Select
-                  placeholder="Selecciona un estado"
+                  placeholder="Select a status"
                   name="status"
                   value={formData.status}
                   onChange={handleInputChange}
@@ -934,8 +1082,6 @@ const TicketManager = () => {
                   <option value="Open">Open</option>
                   <option value="In Progress">In Progress</option>
                   <option value="Resolved">Resolved</option>
-                  {/* Removed 'Closed' from status options to prevent adding closed tickets */}
-                  {/* New status options */}
                   <option value="On Transit">On Transit</option>
                   <option value="Delivered">Delivered</option>
                   <option value="Storage">Storage</option>
@@ -943,7 +1089,7 @@ const TicketManager = () => {
               </FormControl>
 
               <FormControl mb={4}>
-                <FormLabel>Fecha</FormLabel>
+                <FormLabel>Date</FormLabel>
                 <Input
                   type="date"
                   name="date"
@@ -961,7 +1107,7 @@ const TicketManager = () => {
               type="submit"
               form="add-ticket-form"
             >
-              Enviar
+              Submit
             </Button>
           </DrawerFooter>
         </DrawerContent>

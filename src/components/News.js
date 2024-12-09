@@ -1,3 +1,4 @@
+// News.jsx
 import React, { useEffect, useState, useRef, useMemo } from "react";
 import Quill from "quill";
 import "quill/dist/quill.snow.css";
@@ -68,7 +69,7 @@ const UpdateCard = ({ update, onClick }) => (
           </Text>
         </Box>
       </HStack>
-      <Tag colorScheme="green" borderRadius="full" px={3} py={1}>
+      <Tag colorScheme="blue" borderRadius="full" px={3} py={1}>
         {update.type}
       </Tag>
     </Flex>
@@ -237,7 +238,6 @@ const UpdateForm = ({ isOpen, onClose, onSubmit }) => {
           <option value="Xbox Docs">Xbox Docs</option>
           <option value="W10 Docs">W10 Docs</option>
           <option value="BVT">BVT</option>
-          <option value="Console Prep">Console Prep</option>
         </Select>
         <Input
           placeholder="Title"
@@ -287,6 +287,13 @@ const News = () => {
         loadedUpdates.sort((a, b) => new Date(b.date) - new Date(a.date));
         setUpdates(loadedUpdates);
         setFilteredUpdates(loadedUpdates);
+        toast({
+          title: "Updates Loaded",
+          description: "All updates have been successfully loaded.",
+          status: "success",
+          duration: 3000,
+          isClosable: true,
+        });
       } catch (error) {
         toast({
           title: "Error loading updates.",
@@ -300,7 +307,7 @@ const News = () => {
       }
     };
     loadUpdates();
-  }, []);
+  }, [toast]);
 
   useEffect(() => {
     if (searchTerm) {
@@ -421,6 +428,7 @@ const News = () => {
 
   return (
     <Box bg="gray.50" minH="100vh">
+      {/* Header */}
       <Flex
         as="header"
         bg="white"
@@ -453,15 +461,21 @@ const News = () => {
         </Button>
       </Flex>
 
+      {/* Main Content */}
       <Box px={8} py={6}>
+        {/* Search Input */}
         <Input
           placeholder="Search updates..."
           value={searchTerm}
           onChange={handleSearch}
           size="lg"
           mb={6}
+          leftIcon={<SearchIcon />}
+          bg="white"
+          borderColor="gray.300"
         />
 
+        {/* Loading State */}
         {isLoading ? (
           <VStack spacing={4}>
             <Skeleton height="20px" width="100%" />
@@ -482,31 +496,37 @@ const News = () => {
           </VStack>
         )}
 
-        <Flex mt={6} justifyContent="center" alignItems="center">
-          <Button
-            onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-            isDisabled={currentPage === 1}
-            leftIcon={<ChevronLeftIcon />}
-            mr={4}
-          >
-            Previous
-          </Button>
-          <Text>
-            Page {currentPage} of {totalPages}
-          </Text>
-          <Button
-            onClick={() =>
-              setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-            }
-            isDisabled={currentPage === totalPages}
-            rightIcon={<ChevronRightIcon />}
-            ml={4}
-          >
-            Next
-          </Button>
-        </Flex>
+        {/* Pagination Controls */}
+        {!isLoading && filteredUpdates.length > 0 && (
+          <Flex mt={6} justifyContent="center" alignItems="center">
+            <IconButton
+              icon={<ChevronLeftIcon />}
+              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+              isDisabled={currentPage === 1}
+              colorScheme="teal"
+              variant="outline"
+              aria-label="Previous Page"
+              mr={4}
+            />
+            <Text>
+              Page {currentPage} of {totalPages}
+            </Text>
+            <IconButton
+              icon={<ChevronRightIcon />}
+              onClick={() =>
+                setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+              }
+              isDisabled={currentPage === totalPages}
+              colorScheme="teal"
+              variant="outline"
+              aria-label="Next Page"
+              ml={4}
+            />
+          </Flex>
+        )}
       </Box>
 
+      {/* Footer */}
       <Box as="footer" textAlign="center" py={6} bg="gray.100" mt={8}>
         <Text>
           For comments or suggestions, please email me at{" "}
@@ -516,6 +536,7 @@ const News = () => {
         </Text>
       </Box>
 
+      {/* SidePeek for Viewing Updates */}
       {selectedUpdate && (
         <SidePeek
           isOpen={isSidePeekOpen}
@@ -536,6 +557,7 @@ const News = () => {
         />
       )}
 
+      {/* UpdateForm for Adding New Updates */}
       <UpdateForm
         isOpen={isUpdateFormOpen}
         onClose={() => setIsUpdateFormOpen(false)}

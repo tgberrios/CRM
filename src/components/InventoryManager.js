@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from "react";
+// InventoryManager.js
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   Box,
   Button,
@@ -31,73 +32,157 @@ import {
   Skeleton,
   SkeletonText,
   SkeletonCircle,
+  Fade,
+  AlertDialog,
+  AlertDialogBody,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogContent,
+  AlertDialogOverlay,
 } from "@chakra-ui/react";
 import { EditIcon, DeleteIcon, AddIcon, ArrowBackIcon } from "@chakra-ui/icons";
 import { useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 
+/**
+ * Debounce function to limit the rate at which a function can fire.
+ * @param {Function} func - The function to debounce.
+ * @param {number} delay - The delay in milliseconds.
+ * @returns {Function} - The debounced function.
+ */
+const debounce = (func, delay) => {
+  let timeout;
+  return (...args) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), delay);
+  };
+};
+
+/**
+ * InventoryManager Component
+ * Manages accounts and hardware inventory with functionalities to add, edit, delete, import, and export items.
+ * @returns {JSX.Element} - The rendered component.
+ */
 const InventoryManager = () => {
   const [accounts, setAccounts] = useState([]);
   const [hardware, setHardware] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterBy, setFilterBy] = useState("");
-  const [currentView, setCurrentView] = useState("accounts");
+  const [currentView, setCurrentView] = useState("accounts"); // 'accounts' or 'hardware'
   const [editingItem, setEditingItem] = useState({}); // Initialize as empty object
   const [isEditing, setIsEditing] = useState(false);
   const [formErrors, setFormErrors] = useState({});
   const { isOpen, onOpen, onClose } = useDisclosure();
   const toast = useToast();
   const navigate = useNavigate();
-  const fileInputRef = useRef(null); // Referencia para el input de archivo
+  const fileInputRef = useRef(null); // Reference for the file input
 
-  // Estados de carga añadidos
+  // Loading states added
   const [isLoadingAccounts, setIsLoadingAccounts] = useState(true);
   const [isLoadingHardware, setIsLoadingHardware] = useState(true);
+  const [isSwitchingView, setIsSwitchingView] = useState(false); // New state for switching views
+  const [isSearching, setIsSearching] = useState(false); // New state for searching
+
+  // Alert Dialog states
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState(null);
+  const cancelRef = useRef();
 
   useEffect(() => {
     loadAccounts();
     loadHardware();
   }, []);
 
+  /**
+   * Fetches and loads accounts data.
+   */
   const loadAccounts = async () => {
-    setIsLoadingAccounts(true); // Iniciar carga
+    setIsLoadingAccounts(true); // Start loading
     try {
       const accountsData = await window.cert.getAccounts();
       setAccounts(accountsData);
     } catch (err) {
       console.error("Error fetching accounts:", err);
+      toast({
+        title: "Error",
+        description: "Failed to fetch accounts.",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
     } finally {
-      setIsLoadingAccounts(false); // Finalizar carga
+      setIsLoadingAccounts(false); // End loading
     }
   };
 
+  /**
+   * Fetches and loads hardware data.
+   */
   const loadHardware = async () => {
-    setIsLoadingHardware(true); // Iniciar carga
+    setIsLoadingHardware(true); // Start loading
     try {
       const hardwareData = await window.cert.getHardware();
       setHardware(hardwareData);
     } catch (err) {
       console.error("Error fetching hardware:", err);
+      toast({
+        title: "Error",
+        description: "Failed to fetch hardware.",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
     } finally {
-      setIsLoadingHardware(false); // Finalizar carga
+      setIsLoadingHardware(false); // End loading
     }
   };
 
+  /**
+   * Handles search input change with debounce.
+   */
+  const debouncedSetSearchTerm = useCallback(
+    debounce((value) => {
+      setIsSearching(true);
+      setSearchTerm(value);
+      // Simulate a small delay for smoother animation
+      setTimeout(() => {
+        setIsSearching(false);
+      }, 500);
+    }, 300),
+    []
+  );
+
+  /**
+   * Event handler for search input changes.
+   * Extracts the value and passes it to the debounced function.
+   * @param {object} e - The input change event.
+   */
   const handleSearch = (e) => {
-    setSearchTerm(e.target.value);
+    const value = e.target.value;
+    debouncedSetSearchTerm(value);
   };
 
+  /**
+   * Handles filter selection change.
+   */
   const handleFilterByChange = (e) => {
     setFilterBy(e.target.value);
   };
 
+  /**
+   * Opens the edit modal with the selected item.
+   * @param {object} item - The item to edit.
+   */
   const handleEditItem = (item) => {
     setEditingItem(item);
     setIsEditing(true);
     onOpen();
   };
 
+  /**
+   * Opens the add modal with empty fields.
+   */
   const handleAddItem = () => {
     if (currentView === "accounts") {
       setEditingItem({
@@ -111,15 +196,15 @@ const InventoryManager = () => {
       });
     } else {
       setEditingItem({
-        id: null, // Nuevo campo id
-        serialnumber: "",
-        consoleid: "",
-        xboxliveid: "",
-        assetowner: "",
-        projectowner: "",
+        id: null, // New ID
+        serialNumber: "",
+        consoleId: "",
+        xboxLiveId: "",
+        assetOwner: "",
+        projectOwner: "",
         type: "",
         classification: "",
-        assettag: "",
+        assetTag: "",
         location: "",
         status: "",
         owner: "",
@@ -130,41 +215,70 @@ const InventoryManager = () => {
     onOpen();
   };
 
-  const handleDeleteItem = async (item) => {
-    try {
-      if (currentView === "accounts") {
-        await window.cert.deleteAccount(item.id);
-        loadAccounts();
-      } else {
-        await window.cert.deleteHardware(item.id); // Cambia a id
-        loadHardware();
+  /**
+   * Opens the delete confirmation dialog with the selected item.
+   * @param {object} item - The item to delete.
+   */
+  const handleDeleteItem = (item) => {
+    setItemToDelete(item);
+    setIsDeleteDialogOpen(true);
+  };
+
+  /**
+   * Confirms the deletion of the selected item.
+   */
+  const confirmDelete = async () => {
+    if (itemToDelete) {
+      try {
+        if (currentView === "accounts") {
+          await window.cert.deleteAccount(itemToDelete.id);
+          loadAccounts();
+        } else {
+          await window.cert.deleteHardware(itemToDelete.id); // Change to id
+          loadHardware();
+        }
+        toast({
+          title: `${
+            currentView === "accounts" ? "Account" : "Hardware"
+          } Deleted`,
+          status: "success",
+          duration: 2000,
+          isClosable: true,
+        });
+      } catch (err) {
+        console.error("Error deleting item:", err);
+        toast({
+          title: "Error",
+          description: "Could not delete the item.",
+          status: "error",
+          duration: 3000,
+          isClosable: true,
+        });
+      } finally {
+        setIsDeleteDialogOpen(false);
+        setItemToDelete(null);
       }
-      toast({
-        title: `${
-          currentView === "accounts" ? "Cuenta" : "Hardware"
-        } eliminado`,
-        status: "success",
-        duration: 2000,
-      });
-    } catch (err) {
-      console.error("Error deleting item:", err);
-      toast({
-        title: "Error",
-        description: "No se pudo eliminar el elemento.",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
     }
   };
 
+  /**
+   * Cancels the deletion process.
+   */
+  const cancelDelete = () => {
+    setIsDeleteDialogOpen(false);
+    setItemToDelete(null);
+  };
+
+  /**
+   * Saves an item (account or hardware) by adding or editing based on the current view.
+   */
   const handleSaveItem = async () => {
     const username = localStorage.getItem("username");
     if (!username) {
-      console.error("Username no encontrado en localStorage");
+      console.error("Username not found in localStorage");
       toast({
         title: "Error",
-        description: "Username no encontrado en localStorage.",
+        description: "Username not found in localStorage.",
         status: "error",
         duration: 3000,
         isClosable: true,
@@ -172,27 +286,83 @@ const InventoryManager = () => {
       return;
     }
 
-    const hardwareData = { ...editingItem, username };
-    console.log("Datos enviados al backend:", hardwareData);
+    // Validation can be added here
+    let isValid = true;
+    let errors = {};
+
+    if (currentView === "accounts") {
+      if (!editingItem.email) {
+        isValid = false;
+        errors.email = "Email is required.";
+      }
+      if (!editingItem.position) {
+        isValid = false;
+        errors.position = "Position is required.";
+      }
+      if (!editingItem.state) {
+        isValid = false;
+        errors.state = "State is required.";
+      }
+      if (!editingItem.type) {
+        isValid = false;
+        errors.type = "Type is required.";
+      }
+    } else {
+      if (!editingItem.serialNumber) {
+        isValid = false;
+        errors.serialNumber = "Serial Number is required.";
+      }
+      if (!editingItem.type) {
+        isValid = false;
+        errors.type = "Type is required.";
+      }
+      if (!editingItem.status) {
+        isValid = false;
+        errors.status = "Status is required.";
+      }
+    }
+
+    setFormErrors(errors);
+
+    if (!isValid) {
+      toast({
+        title: "Invalid Input",
+        description: "Please correct the errors in the form.",
+        status: "warning",
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
 
     try {
-      if (isEditing) {
-        await window.cert.editHardware(hardwareData);
+      if (currentView === "accounts") {
+        if (isEditing) {
+          await window.cert.editAccount({ ...editingItem, username });
+        } else {
+          await window.cert.addAccount({ ...editingItem, username });
+        }
+        loadAccounts();
       } else {
-        await window.cert.addHardware(hardwareData);
+        if (isEditing) {
+          await window.cert.editHardware({ ...editingItem, username });
+        } else {
+          await window.cert.addHardware({ ...editingItem, username });
+        }
+        loadHardware();
       }
-      loadHardware();
       onClose();
       toast({
-        title: `Hardware guardado`,
+        title: `${currentView === "accounts" ? "Account" : "Hardware"} Saved`,
         status: "success",
         duration: 2000,
+        isClosable: true,
       });
     } catch (err) {
-      console.error("Error al guardar hardware:", err);
+      console.error(`Error saving ${currentView}:`, err);
       toast({
         title: "Error",
-        description: "No se pudo guardar el hardware.",
+        description: `Could not save the ${currentView}.`,
         status: "error",
         duration: 3000,
         isClosable: true,
@@ -200,11 +370,13 @@ const InventoryManager = () => {
     }
   };
 
-  // Función para exportar datos a Excel
+  /**
+   * Exports current data (accounts or hardware) to an Excel file.
+   */
   const handleExport = () => {
     const dataToExport = currentView === "accounts" ? accounts : hardware;
 
-    // Mapeamos los datos para eliminar propiedades innecesarias
+    // Map data to exclude unnecessary properties (e.g., id)
     const data = dataToExport.map(({ id, ...item }) => item);
 
     const worksheet = XLSX.utils.json_to_sheet(data);
@@ -226,11 +398,17 @@ const InventoryManager = () => {
     );
   };
 
-  // Funciones para importar datos desde Excel
+  /**
+   * Triggers the file input click for importing Excel data.
+   */
   const handleImportClick = () => {
     fileInputRef.current.click();
   };
 
+  /**
+   * Handles importing data from an Excel file.
+   * @param {Event} e - The file input change event.
+   */
   const handleImport = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -246,10 +424,10 @@ const InventoryManager = () => {
       try {
         const username = localStorage.getItem("username");
         if (!username) {
-          console.error("Username no encontrado en localStorage");
+          console.error("Username not found in localStorage");
           toast({
             title: "Error",
-            description: "Username no encontrado en localStorage.",
+            description: "Username not found in localStorage.",
             status: "error",
             duration: 3000,
             isClosable: true,
@@ -270,15 +448,16 @@ const InventoryManager = () => {
         }
 
         toast({
-          title: "Importación exitosa",
+          title: "Import Successful",
           status: "success",
           duration: 2000,
+          isClosable: true,
         });
       } catch (err) {
         console.error("Error importing data:", err);
         toast({
           title: "Error",
-          description: "No se pudo importar los datos.",
+          description: "Could not import the data.",
           status: "error",
           duration: 3000,
           isClosable: true,
@@ -288,6 +467,9 @@ const InventoryManager = () => {
     reader.readAsBinaryString(file);
   };
 
+  /**
+   * Filters items based on search term and selected filter.
+   */
   const filteredItems = (
     currentView === "accounts" ? accounts : hardware
   ).filter((item) => {
@@ -303,53 +485,168 @@ const InventoryManager = () => {
     }
   });
 
+  /**
+   * Renders the table rows with either Skeletons or actual data.
+   */
   const renderItems = () => {
     const isLoading =
       currentView === "accounts" ? isLoadingAccounts : isLoadingHardware;
 
-    if (isLoading) {
-      // Mostrar Skeleton mientras carga
+    if (isSwitchingView || isSearching || isLoading) {
+      // Show Skeletons while loading or switching views
+      const skeletonRows = Array.from({ length: 5 });
+
       return (
         <Table variant="simple" colorScheme="gray">
           <Thead>
             <Tr>
-              <Th>ID</Th>
-              <Th>Número de Serie</Th>
-              <Th>Tipo</Th>
-              <Th>Propietario del Activo</Th>
-              <Th>Estado</Th>
-              <Th>Acciones</Th>
+              {currentView === "accounts" ? (
+                <>
+                  <Th>ID</Th>
+                  <Th>Email</Th>
+                  <Th>Position</Th>
+                  <Th>State</Th>
+                  <Th>Actions</Th>
+                </>
+              ) : (
+                <>
+                  <Th>Serial Number</Th>
+                  <Th>Type</Th>
+                  <Th>Asset Owner</Th>
+                  <Th>Status</Th>
+                  <Th>Actions</Th>
+                </>
+              )}
+            </Tr>
+          </Thead>
+          <Tbody>
+            {skeletonRows.map((_, index) => (
+              <Tr key={index}>
+                {currentView === "accounts" ? (
+                  <>
+                    <Td>
+                      <Skeleton height="20px" width="30px" />
+                    </Td>
+                    <Td>
+                      <Skeleton height="20px" />
+                    </Td>
+                    <Td>
+                      <Skeleton height="20px" />
+                    </Td>
+                    <Td>
+                      <Skeleton height="20px" width="60px" />
+                    </Td>
+                    <Td>
+                      <HStack spacing={2}>
+                        <SkeletonCircle size="24px" />
+                        <SkeletonCircle size="24px" />
+                      </HStack>
+                    </Td>
+                  </>
+                ) : (
+                  <>
+                    <Td>
+                      <Skeleton height="20px" width="80px" />
+                    </Td>
+                    <Td>
+                      <Skeleton height="20px" />
+                    </Td>
+                    <Td>
+                      <Skeleton height="20px" />
+                    </Td>
+                    <Td>
+                      <Skeleton height="20px" width="80px" />
+                    </Td>
+                    <Td>
+                      <HStack spacing={2}>
+                        <SkeletonCircle size="24px" />
+                        <SkeletonCircle size="24px" />
+                      </HStack>
+                    </Td>
+                  </>
+                )}
+              </Tr>
+            ))}
+          </Tbody>
+        </Table>
+      );
+    }
+
+    return (
+      <Fade in={!isLoading}>
+        <Table variant="simple" colorScheme="gray">
+          <Thead>
+            <Tr>
+              {currentView === "accounts" ? (
+                <>
+                  <Th>ID</Th>
+                  <Th>Email</Th>
+                  <Th>Position</Th>
+                  <Th>State</Th>
+                  <Th>Actions</Th>
+                </>
+              ) : (
+                <>
+                  <Th>Serial Number</Th>
+                  <Th>Type</Th>
+                  <Th>Asset Owner</Th>
+                  <Th>Status</Th>
+                  <Th>Actions</Th>
+                </>
+              )}
             </Tr>
           </Thead>
           <Tbody>
             {filteredItems.length > 0 ? (
               filteredItems.map((item) => (
-                <Tr key={item.id}>
-                  <Td>{item.id}</Td>
-                  <Td>{item.serialnumber}</Td>
-                  <Td>{item.type}</Td>
-                  <Td>{item.assetowner}</Td>
-                  <Td>
-                    <Badge
-                      colorScheme={
-                        item.status === "Available"
-                          ? "green"
-                          : item.status === "In Use"
-                          ? "blue"
-                          : item.status === "Maintenance"
-                          ? "orange"
-                          : item.status === "Retired"
-                          ? "red"
-                          : item.status === "Broken"
-                          ? "red"
-                          : item.status === "Reserved"
-                          ? "purple"
-                          : "gray"
-                      }
-                    >
-                      {item.status}
-                    </Badge>
-                  </Td>
+                <Tr key={item.id || item.serialNumber}>
+                  {currentView === "accounts" ? (
+                    <>
+                      <Td>{item.id}</Td>
+                      <Td>{item.email}</Td>
+                      <Td>{item.position}</Td>
+                      <Td>
+                        <Badge
+                          colorScheme={
+                            item.state === "Active"
+                              ? "green"
+                              : item.state === "Inactive"
+                              ? "red"
+                              : "yellow"
+                          }
+                        >
+                          {item.state}
+                        </Badge>
+                      </Td>
+                    </>
+                  ) : (
+                    <>
+                      <Td>{item.serialNumber}</Td>
+                      <Td>{item.type}</Td>
+                      <Td>{item.assetOwner}</Td>
+                      <Td>
+                        <Badge
+                          colorScheme={
+                            item.status === "Available"
+                              ? "green"
+                              : item.status === "In Use"
+                              ? "blue"
+                              : item.status === "Maintenance"
+                              ? "orange"
+                              : item.status === "Retired"
+                              ? "red"
+                              : item.status === "Broken"
+                              ? "red"
+                              : item.status === "Reserved"
+                              ? "purple"
+                              : "gray"
+                          }
+                        >
+                          {item.status}
+                        </Badge>
+                      </Td>
+                    </>
+                  )}
                   <Td>
                     <HStack spacing={2}>
                       <IconButton
@@ -357,14 +654,14 @@ const InventoryManager = () => {
                         onClick={() => handleEditItem(item)}
                         colorScheme="blue"
                         size="sm"
-                        aria-label="Editar"
+                        aria-label="Edit"
                       />
                       <IconButton
                         icon={<DeleteIcon />}
                         onClick={() => handleDeleteItem(item)}
                         colorScheme="red"
                         size="sm"
-                        aria-label="Eliminar"
+                        aria-label="Delete"
                       />
                     </HStack>
                   </Td>
@@ -372,119 +669,14 @@ const InventoryManager = () => {
               ))
             ) : (
               <Tr>
-                <Td colSpan="6">
-                  <Text textAlign="center">No se encontraron resultados</Text>
+                <Td colSpan={currentView === "accounts" ? "5" : "5"}>
+                  <Text textAlign="center">No results found.</Text>
                 </Td>
               </Tr>
             )}
           </Tbody>
         </Table>
-      );
-    }
-
-    return (
-      <Table variant="simple" colorScheme="gray">
-        <Thead>
-          <Tr>
-            {currentView === "accounts" ? (
-              <>
-                <Th>ID</Th>
-                <Th>Email</Th>
-                <Th>Posición</Th>
-                <Th>Estado</Th>
-                <Th>Acciones</Th>
-              </>
-            ) : (
-              <>
-                <Th>Número de Serie</Th>
-                <Th>Tipo</Th>
-                <Th>Propietario del Activo</Th>
-                <Th>Estado</Th>
-                <Th>Acciones</Th>
-              </>
-            )}
-          </Tr>
-        </Thead>
-        <Tbody>
-          {filteredItems.length > 0 ? (
-            filteredItems.map((item) => (
-              <Tr key={item.id || item.serialnumber}>
-                {currentView === "accounts" ? (
-                  <>
-                    <Td>{item.id}</Td>
-                    <Td>{item.email}</Td>
-                    <Td>{item.position}</Td>
-                    <Td>
-                      <Badge
-                        colorScheme={
-                          item.state === "Active"
-                            ? "green"
-                            : item.state === "Inactive"
-                            ? "red"
-                            : "yellow"
-                        }
-                      >
-                        {item.state}
-                      </Badge>
-                    </Td>
-                  </>
-                ) : (
-                  <>
-                    <Td>{item.serialnumber}</Td>
-                    <Td>{item.type}</Td>
-                    <Td>{item.assetowner}</Td>
-                    <Td>
-                      <Badge
-                        colorScheme={
-                          item.status === "Available"
-                            ? "green"
-                            : item.status === "In Use"
-                            ? "blue"
-                            : item.status === "Maintenance"
-                            ? "orange"
-                            : item.status === "Retired"
-                            ? "red"
-                            : item.status === "Broken"
-                            ? "red"
-                            : item.status === "Reserved"
-                            ? "purple"
-                            : "gray"
-                        }
-                      >
-                        {item.status}
-                      </Badge>
-                    </Td>
-                  </>
-                )}
-                <Td>
-                  <HStack spacing={2}>
-                    <IconButton
-                      icon={<EditIcon />}
-                      onClick={() => handleEditItem(item)}
-                      colorScheme="blue"
-                      size="sm"
-                      aria-label="Editar"
-                    />
-                    <IconButton
-                      icon={<DeleteIcon />}
-                      onClick={() => handleDeleteItem(item)}
-                      colorScheme="red"
-                      size="sm"
-                      aria-label="Eliminar"
-                    />
-                  </HStack>
-                </Td>
-              </Tr>
-            ))
-          ) : (
-            <Tr>
-              <Td colSpan="5">
-                <Text textAlign="center">No se encontraron resultados</Text>
-              </Td>
-            </Tr>
-          )}
-        </Tbody>
-      </Table>
+      </Fade>
     );
   };
 
@@ -509,23 +701,41 @@ const InventoryManager = () => {
           Inventory Manager
         </Heading>
 
-        {/* Botones de Navegación */}
+        {/* Navigation Buttons */}
         <VStack spacing={4} align="stretch">
           <Button
-            onClick={() => setCurrentView("accounts")}
+            onClick={() => {
+              if (currentView !== "accounts") {
+                setIsSwitchingView(true);
+                setCurrentView("accounts");
+                // Simulate loading delay
+                setTimeout(() => {
+                  setIsSwitchingView(false);
+                }, 500);
+              }
+            }}
             colorScheme={currentView === "accounts" ? "teal" : "gray"}
             variant="solid"
             leftIcon={<EditIcon />}
           >
-            Gestionar Cuentas
+            Manage Accounts
           </Button>
           <Button
-            onClick={() => setCurrentView("hardware")}
+            onClick={() => {
+              if (currentView !== "hardware") {
+                setIsSwitchingView(true);
+                setCurrentView("hardware");
+                // Simulate loading delay
+                setTimeout(() => {
+                  setIsSwitchingView(false);
+                }, 500);
+              }
+            }}
             colorScheme={currentView === "hardware" ? "teal" : "gray"}
             variant="solid"
             leftIcon={<EditIcon />}
           >
-            Gestionar Hardware
+            Manage Hardware
           </Button>
           <Button
             onClick={() => navigate("/Home")}
@@ -533,43 +743,45 @@ const InventoryManager = () => {
             variant="solid"
             leftIcon={<ArrowBackIcon />}
           >
-            Volver al Inicio
+            Back to Home
           </Button>
         </VStack>
 
         <Divider my={6} />
 
-        {/* Buscar y Filtrar */}
+        {/* Search and Filter */}
         <Heading as="h2" size="md" mb={4}>
-          Buscar y Filtrar
+          Search and Filter
         </Heading>
         <VStack spacing={4} align="stretch">
           <Input
-            placeholder={`Buscar ${
-              currentView === "accounts" ? "Cuentas" : "Hardware"
+            placeholder={`Search ${
+              currentView === "accounts" ? "Accounts" : "Hardware"
             }...`}
-            value={searchTerm}
             onChange={handleSearch}
           />
           <Select
-            placeholder="Filtrar por..."
+            placeholder="Filter by..."
             onChange={handleFilterByChange}
             value={filterBy}
           >
             {currentView === "accounts" ? (
               <>
-                <option value="position">Posición</option>
-                <option value="state">Estado</option>
+                <option value="position">Position</option>
+                <option value="state">State</option>
                 <option value="sandbox">Sandbox</option>
-                <option value="subscription">Suscripción</option>
+                <option value="subscription">Subscription</option>
+                <option value="location">Location</option>
               </>
             ) : (
               <>
-                <option value="assetOwner">Propietario del Activo</option>
-                <option value="projectOwner">Propietario del Proyecto</option>
-                <option value="type">Tipo</option>
-                <option value="classification">Clasificación</option>
-                <option value="status">Estado</option>
+                <option value="assetOwner">Asset Owner</option>
+                <option value="projectOwner">Project Owner</option>
+                <option value="type">Type</option>
+                <option value="classification">Classification</option>
+                <option value="status">Status</option>
+                <option value="owner">Owner</option>
+                <option value="location">Location</option>
               </>
             )}
           </Select>
@@ -577,39 +789,40 @@ const InventoryManager = () => {
 
         <Divider my={6} />
 
-        {/* Botones de Importar y Exportar */}
+        {/* Import and Export Buttons */}
         <Heading as="h2" size="md" mb={4}>
-          Importar y Exportar
+          Import and Export
         </Heading>
         <VStack spacing={4} align="stretch">
           <Button colorScheme="green" onClick={handleExport}>
-            Exportar a Excel
+            Export to Excel
           </Button>
           <Button colorScheme="blue" onClick={handleImportClick}>
-            Importar desde Excel
+            Import from Excel
           </Button>
           <Input
             type="file"
             ref={fileInputRef}
             onChange={handleImport}
             style={{ display: "none" }}
+            accept=".xlsx, .xls, .csv"
           />
         </VStack>
       </Box>
 
-      {/* Contenido Principal */}
+      {/* Main Content */}
       <Box flex="1" ml="20%" p={6} bg="gray.50">
         <Heading as="h2" size="lg" mb={6}>
-          {currentView === "accounts" ? "Cuentas" : "Hardware"}
+          {currentView === "accounts" ? "Accounts" : "Hardware"}
         </Heading>
 
-        {/* Tabla de Elementos */}
+        {/* Items Table */}
         <Box bg="white" p={6} borderRadius="md" shadow="md">
           {renderItems()}
         </Box>
       </Box>
 
-      {/* Botón Flotante de Añadir */}
+      {/* Floating Add Button */}
       <IconButton
         icon={<AddIcon />}
         colorScheme="teal"
@@ -619,19 +832,19 @@ const InventoryManager = () => {
         bottom="40px"
         right="40px"
         borderRadius="full"
-        aria-label="Añadir"
+        aria-label="Add Item"
       />
 
-      {/* Drawer para Añadir/Editar Elementos */}
+      {/* Drawer for Adding/Editing Items */}
       <Drawer isOpen={isOpen} placement="right" onClose={onClose} size="md">
         <DrawerOverlay />
         <DrawerContent>
           <DrawerCloseButton />
           <DrawerHeader>
             {isEditing
-              ? `Editar ${currentView === "accounts" ? "Cuenta" : "Hardware"}`
-              : `Añadir Nuevo ${
-                  currentView === "accounts" ? "Cuenta" : "Hardware"
+              ? `Edit ${currentView === "accounts" ? "Account" : "Hardware"}`
+              : `Add New ${
+                  currentView === "accounts" ? "Account" : "Hardware"
                 }`}
           </DrawerHeader>
 
@@ -656,7 +869,7 @@ const InventoryManager = () => {
                   )}
                 </FormControl>
                 <FormControl mb={4} isInvalid={formErrors.position}>
-                  <FormLabel>Posición</FormLabel>
+                  <FormLabel>Position</FormLabel>
                   <Input
                     value={editingItem?.position || ""}
                     onChange={(e) =>
@@ -673,7 +886,7 @@ const InventoryManager = () => {
                   )}
                 </FormControl>
                 <FormControl mb={4} isInvalid={formErrors.state}>
-                  <FormLabel>Estado</FormLabel>
+                  <FormLabel>State</FormLabel>
                   <Select
                     value={editingItem?.state || ""}
                     onChange={(e) =>
@@ -683,12 +896,12 @@ const InventoryManager = () => {
                       })
                     }
                   >
-                    <option value="">Seleccionar Estado</option>
-                    <option value="Active">Activo</option>
-                    <option value="Inactive">Inactivo</option>
-                    <option value="Suspended">Suspendido</option>
-                    <option value="Pending">Pendiente</option>
-                    <option value="Deleted">Eliminado</option>
+                    <option value="">Select State</option>
+                    <option value="Active">Active</option>
+                    <option value="Inactive">Inactive</option>
+                    <option value="Suspended">Suspended</option>
+                    <option value="Pending">Pending</option>
+                    <option value="Deleted">Deleted</option>
                   </Select>
                   {formErrors.state && (
                     <Text color="red.500" fontSize="sm">
@@ -709,7 +922,7 @@ const InventoryManager = () => {
                   />
                 </FormControl>
                 <FormControl mb={4}>
-                  <FormLabel>Suscripción</FormLabel>
+                  <FormLabel>Subscription</FormLabel>
                   <Input
                     value={editingItem?.subscription || ""}
                     onChange={(e) =>
@@ -721,7 +934,7 @@ const InventoryManager = () => {
                   />
                 </FormControl>
                 <FormControl mb={4}>
-                  <FormLabel>Ubicación</FormLabel>
+                  <FormLabel>Location</FormLabel>
                   <Input
                     value={editingItem?.location || ""}
                     onChange={(e) =>
@@ -733,7 +946,7 @@ const InventoryManager = () => {
                   />
                 </FormControl>
                 <FormControl mb={4}>
-                  <FormLabel>Notas</FormLabel>
+                  <FormLabel>Notes</FormLabel>
                   <Input
                     value={editingItem?.notes || ""}
                     onChange={(e) =>
@@ -747,73 +960,73 @@ const InventoryManager = () => {
               </>
             ) : (
               <>
-                <FormControl mb={4} isInvalid={formErrors.serialnumber}>
-                  <FormLabel>Número de Serie</FormLabel>
+                <FormControl mb={4} isInvalid={formErrors.serialNumber}>
+                  <FormLabel>Serial Number</FormLabel>
                   <Input
-                    value={editingItem?.serialnumber || ""}
+                    value={editingItem?.serialNumber || ""}
                     onChange={(e) =>
                       setEditingItem({
                         ...editingItem,
-                        serialnumber: e.target.value,
+                        serialNumber: e.target.value,
                       })
                     }
                   />
-                  {formErrors.serialnumber && (
+                  {formErrors.serialNumber && (
                     <Text color="red.500" fontSize="sm">
-                      {formErrors.serialnumber}
+                      {formErrors.serialNumber}
                     </Text>
                   )}
                 </FormControl>
                 <FormControl mb={4}>
-                  <FormLabel>ID de Consola</FormLabel>
+                  <FormLabel>Console ID</FormLabel>
                   <Input
-                    value={editingItem?.consoleid || ""}
+                    value={editingItem?.consoleId || ""}
                     onChange={(e) =>
                       setEditingItem({
                         ...editingItem,
-                        consoleid: e.target.value,
+                        consoleId: e.target.value,
                       })
                     }
                   />
                 </FormControl>
                 <FormControl mb={4}>
-                  <FormLabel>ID de Xbox Live</FormLabel>
+                  <FormLabel>Xbox Live ID</FormLabel>
                   <Input
-                    value={editingItem?.xboxliveid || ""}
+                    value={editingItem?.xboxLiveId || ""}
                     onChange={(e) =>
                       setEditingItem({
                         ...editingItem,
-                        xboxliveid: e.target.value,
+                        xboxLiveId: e.target.value,
                       })
                     }
                   />
                 </FormControl>
                 <FormControl mb={4}>
-                  <FormLabel>Propietario del Activo</FormLabel>
+                  <FormLabel>Asset Owner</FormLabel>
                   <Input
-                    value={editingItem?.assetowner || ""}
+                    value={editingItem?.assetOwner || ""}
                     onChange={(e) =>
                       setEditingItem({
                         ...editingItem,
-                        assetowner: e.target.value,
+                        assetOwner: e.target.value,
                       })
                     }
                   />
                 </FormControl>
                 <FormControl mb={4}>
-                  <FormLabel>Propietario del Proyecto</FormLabel>
+                  <FormLabel>Project Owner</FormLabel>
                   <Input
-                    value={editingItem?.projectowner || ""}
+                    value={editingItem?.projectOwner || ""}
                     onChange={(e) =>
                       setEditingItem({
                         ...editingItem,
-                        projectowner: e.target.value,
+                        projectOwner: e.target.value,
                       })
                     }
                   />
                 </FormControl>
                 <FormControl mb={4} isInvalid={formErrors.type}>
-                  <FormLabel>Tipo</FormLabel>
+                  <FormLabel>Type</FormLabel>
                   <Input
                     value={editingItem?.type || ""}
                     onChange={(e) =>
@@ -830,7 +1043,7 @@ const InventoryManager = () => {
                   )}
                 </FormControl>
                 <FormControl mb={4}>
-                  <FormLabel>Clasificación</FormLabel>
+                  <FormLabel>Classification</FormLabel>
                   <Input
                     value={editingItem?.classification || ""}
                     onChange={(e) =>
@@ -842,7 +1055,7 @@ const InventoryManager = () => {
                   />
                 </FormControl>
                 <FormControl mb={4} isInvalid={formErrors.status}>
-                  <FormLabel>Estado</FormLabel>
+                  <FormLabel>Status</FormLabel>
                   <Select
                     value={editingItem?.status || ""}
                     onChange={(e) => {
@@ -852,13 +1065,13 @@ const InventoryManager = () => {
                       });
                     }}
                   >
-                    <option value="">Seleccionar Estado</option>
-                    <option value="Available">Disponible</option>
-                    <option value="In Use">En Uso</option>
-                    <option value="Maintenance">Mantenimiento</option>
-                    <option value="Retired">Retirado</option>
-                    <option value="Broken">Roto</option>
-                    <option value="Reserved">Reservado</option>
+                    <option value="">Select Status</option>
+                    <option value="Available">Available</option>
+                    <option value="In Use">In Use</option>
+                    <option value="Maintenance">Maintenance</option>
+                    <option value="Retired">Retired</option>
+                    <option value="Broken">Broken</option>
+                    <option value="Reserved">Reserved</option>
                   </Select>
                   {formErrors.status && (
                     <Text color="red.500" fontSize="sm">
@@ -867,19 +1080,19 @@ const InventoryManager = () => {
                   )}
                 </FormControl>
                 <FormControl mb={4}>
-                  <FormLabel>Etiqueta del Activo</FormLabel>
+                  <FormLabel>Asset Tag</FormLabel>
                   <Input
-                    value={editingItem?.assettag || ""}
+                    value={editingItem?.assetTag || ""}
                     onChange={(e) =>
                       setEditingItem({
                         ...editingItem,
-                        assettag: e.target.value,
+                        assetTag: e.target.value,
                       })
                     }
                   />
                 </FormControl>
                 <FormControl mb={4}>
-                  <FormLabel>Ubicación</FormLabel>
+                  <FormLabel>Location</FormLabel>
                   <Input
                     value={editingItem?.location || ""}
                     onChange={(e) =>
@@ -891,7 +1104,7 @@ const InventoryManager = () => {
                   />
                 </FormControl>
                 <FormControl mb={4}>
-                  <FormLabel>Propietario</FormLabel>
+                  <FormLabel>Owner</FormLabel>
                   <Input
                     value={editingItem?.owner || ""}
                     onChange={(e) =>
@@ -908,15 +1121,126 @@ const InventoryManager = () => {
 
           <DrawerFooter>
             <Button variant="outline" mr={3} onClick={onClose}>
-              Cancelar
+              Cancel
             </Button>
             <Button colorScheme="blue" onClick={handleSaveItem}>
-              Guardar
+              Save
             </Button>
           </DrawerFooter>
         </DrawerContent>
       </Drawer>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog
+        isOpen={isDeleteDialogOpen}
+        leastDestructiveRef={cancelRef}
+        onClose={cancelDelete}
+      >
+        <AlertDialogOverlay>
+          <AlertDialogContent>
+            <AlertDialogHeader fontSize="lg" fontWeight="bold">
+              Delete {currentView === "accounts" ? "Account" : "Hardware"}
+            </AlertDialogHeader>
+
+            <AlertDialogBody>
+              Are you sure you want to delete this{" "}
+              {currentView === "accounts" ? "account" : "hardware"}? This action
+              cannot be undone.
+            </AlertDialogBody>
+
+            <AlertDialogFooter>
+              <Button ref={cancelRef} onClick={cancelDelete}>
+                Cancel
+              </Button>
+              <Button colorScheme="red" onClick={confirmDelete} ml={3}>
+                Delete
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialogOverlay>
+      </AlertDialog>
     </Box>
+  );
+
+  /**
+   * SkeletonLoading Component
+   * Displays Skeletons while data is being loaded.
+   * @param {string} view - Current view ('accounts' or 'hardware').
+   * @returns {JSX.Element} - The rendered component.
+   */
+  const SkeletonLoading = ({ view }) => (
+    <Table variant="simple" colorScheme="gray">
+      <Thead>
+        <Tr>
+          {view === "accounts" ? (
+            <>
+              <Th>ID</Th>
+              <Th>Email</Th>
+              <Th>Position</Th>
+              <Th>State</Th>
+              <Th>Actions</Th>
+            </>
+          ) : (
+            <>
+              <Th>Serial Number</Th>
+              <Th>Type</Th>
+              <Th>Asset Owner</Th>
+              <Th>Status</Th>
+              <Th>Actions</Th>
+            </>
+          )}
+        </Tr>
+      </Thead>
+      <Tbody>
+        {Array.from({ length: 5 }).map((_, index) => (
+          <Tr key={index}>
+            {view === "accounts" ? (
+              <>
+                <Td>
+                  <Skeleton height="20px" width="30px" />
+                </Td>
+                <Td>
+                  <Skeleton height="20px" />
+                </Td>
+                <Td>
+                  <Skeleton height="20px" />
+                </Td>
+                <Td>
+                  <Skeleton height="20px" width="60px" />
+                </Td>
+                <Td>
+                  <HStack spacing={2}>
+                    <SkeletonCircle size="24px" />
+                    <SkeletonCircle size="24px" />
+                  </HStack>
+                </Td>
+              </>
+            ) : (
+              <>
+                <Td>
+                  <Skeleton height="20px" width="80px" />
+                </Td>
+                <Td>
+                  <Skeleton height="20px" />
+                </Td>
+                <Td>
+                  <Skeleton height="20px" />
+                </Td>
+                <Td>
+                  <Skeleton height="20px" width="80px" />
+                </Td>
+                <Td>
+                  <HStack spacing={2}>
+                    <SkeletonCircle size="24px" />
+                    <SkeletonCircle size="24px" />
+                  </HStack>
+                </Td>
+              </>
+            )}
+          </Tr>
+        ))}
+      </Tbody>
+    </Table>
   );
 };
 

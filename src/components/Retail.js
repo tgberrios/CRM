@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from "react";
+// PurchaseTracker.jsx
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   Box,
   Button,
   Input,
   FormControl,
+  Skeleton,
   FormLabel,
   useDisclosure,
   Heading,
@@ -31,9 +33,10 @@ import {
   IconButton,
   HStack,
   Textarea,
+  Spinner,
 } from "@chakra-ui/react";
 import { CopyIcon, AddIcon } from "@chakra-ui/icons";
-import { useNavigate } from "react-router-dom"; // Importa useNavigate
+import { useNavigate } from "react-router-dom";
 
 const PurchaseTracker = () => {
   const { isOpen, onOpen, onClose } = useDisclosure();
@@ -41,8 +44,10 @@ const PurchaseTracker = () => {
   const [selectedPurchase, setSelectedPurchase] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [formErrors, setFormErrors] = useState({});
+  const [loading, setLoading] = useState(false); // Loading state for fetching purchases
+  const [submitting, setSubmitting] = useState(false); // Loading state for form submission
   const toast = useToast();
-  const navigate = useNavigate(); // Inicializa useNavigate
+  const navigate = useNavigate();
 
   const [purchaseForm, setPurchaseForm] = useState({
     title: "",
@@ -52,34 +57,55 @@ const PurchaseTracker = () => {
     reason: "",
   });
 
-  useEffect(() => {
-    loadPurchases();
-  }, []);
-
-  const loadPurchases = async () => {
+  // Function to load purchases
+  const loadPurchases = useCallback(async () => {
+    setLoading(true);
     try {
       const fetchedPurchases = await window.cert.getPurchases();
 
-      // Convertimos cualquier campo date en un string legible
+      // Normalize purchases data
       const normalizedPurchases = fetchedPurchases.map((purchase) => ({
         ...purchase,
         date:
           typeof purchase.date === "string"
             ? purchase.date
-            : new Date(purchase.date).toISOString().split("T")[0], // Convertir a ISO string si es necesario
+            : new Date(purchase.date).toISOString().split("T")[0],
       }));
 
       setPurchases(normalizedPurchases);
+      toast({
+        title: "Purchases Loaded",
+        description: "All purchases have been successfully loaded.",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
     } catch (error) {
       console.error("Error loading purchases:", error);
+      toast({
+        title: "Error",
+        description:
+          "There was an error loading purchases. Please try again later.",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [toast]);
 
+  useEffect(() => {
+    loadPurchases();
+  }, [loadPurchases]);
+
+  // Handle input changes in the form
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setPurchaseForm({ ...purchaseForm, [name]: value });
   };
 
+  // Handle form submission
   const handleSubmit = async (event) => {
     event.preventDefault();
 
@@ -92,6 +118,7 @@ const PurchaseTracker = () => {
     setFormErrors(errors);
     if (Object.keys(errors).length > 0) return;
 
+    setSubmitting(true);
     try {
       await window.cert.addPurchase(purchaseForm);
       setPurchaseForm({
@@ -104,7 +131,7 @@ const PurchaseTracker = () => {
       onClose();
       loadPurchases();
       toast({
-        title: "Purchase added",
+        title: "Purchase Added",
         description: "The purchase has been added successfully.",
         status: "success",
         duration: 3000,
@@ -114,33 +141,77 @@ const PurchaseTracker = () => {
       console.error("Error adding purchase:", error);
       toast({
         title: "Error",
-        description: "There was an error adding the purchase.",
+        description:
+          "There was an error adding the purchase. Please try again.",
         status: "error",
-        duration: 3000,
+        duration: 5000,
         isClosable: true,
       });
+    } finally {
+      setSubmitting(false);
     }
   };
 
+  // Handle purchase selection
   const showPurchaseDetails = (purchase) => {
     setSelectedPurchase(purchase);
   };
 
+  // Handle search functionality
   const handleSearch = async (event) => {
     const query = event.target.value.toLowerCase();
     setSearchQuery(query);
     try {
       const searchedPurchases = await window.cert.searchPurchases(query);
       setPurchases(searchedPurchases);
+      toast({
+        title: "Search Completed",
+        description: `Found ${searchedPurchases.length} purchase(s) matching your query.`,
+        status: "info",
+        duration: 3000,
+        isClosable: true,
+      });
     } catch (error) {
       console.error("Error searching purchases:", error);
+      toast({
+        title: "Error",
+        description:
+          "There was an error searching purchases. Please try again.",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
     }
   };
 
+  // Calculate total amount spent
   const calculateTotalSpent = () => {
     return purchases
       .reduce((acc, purchase) => acc + Number(purchase.price || 0), 0)
       .toFixed(2);
+  };
+
+  // Memoize current page purchases for performance
+  const currentUpdates = useMemo(() => {
+    const indexOfLastUpdate = currentPage * itemsPerPage;
+    const indexOfFirstUpdate = indexOfLastUpdate - itemsPerPage;
+    return purchases.slice(indexOfFirstUpdate, indexOfLastUpdate);
+  }, [purchases, currentPage]);
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
+
+  const totalPages = useMemo(() => {
+    return Math.ceil(purchases.length / itemsPerPage);
+  }, [purchases.length]);
+
+  // Handle pagination
+  const handlePageChange = (direction) => {
+    setCurrentPage((prev) => {
+      if (direction === "prev") return Math.max(prev - 1, 1);
+      if (direction === "next") return Math.min(prev + 1, totalPages);
+      return prev;
+    });
   };
 
   return (
@@ -164,6 +235,7 @@ const PurchaseTracker = () => {
           mb={4}
           onClick={onOpen}
           leftIcon={<AddIcon />}
+          isDisabled={submitting}
         >
           Add Purchase
         </Button>
@@ -171,7 +243,7 @@ const PurchaseTracker = () => {
         <Button
           colorScheme="gray"
           w="full"
-          onClick={() => navigate("/home")} // Navega a la página de inicio
+          onClick={() => navigate("/home")} // Navigate to home page
           mb={4}
         >
           Go to Home
@@ -182,8 +254,14 @@ const PurchaseTracker = () => {
         <Heading as="h2" size="md" mb={4}>
           Purchases
         </Heading>
-        <VStack align="start" spacing={3} overflowY="auto">
-          {purchases.length > 0 ? (
+        <VStack align="start" spacing={3} overflowY="auto" maxH="60vh">
+          {loading ? (
+            <>
+              <Skeleton height="40px" width="100%" />
+              <Skeleton height="40px" width="100%" />
+              <Skeleton height="40px" width="100%" />
+            </>
+          ) : purchases.length > 0 ? (
             purchases.map((purchase) => (
               <Box
                 key={purchase.id}
@@ -247,7 +325,7 @@ const PurchaseTracker = () => {
                 aria-label="Copy details"
                 onClick={() =>
                   navigator.clipboard.writeText(
-                    JSON.stringify(selectedPurchase)
+                    JSON.stringify(selectedPurchase, null, 2)
                   )
                 }
               />
@@ -304,6 +382,31 @@ const PurchaseTracker = () => {
             </Text>
           </Box>
         )}
+
+        {/* Pagination Controls */}
+        {purchases.length > itemsPerPage && (
+          <Flex mt={6} justifyContent="center" alignItems="center">
+            <Button
+              onClick={() => handlePageChange("prev")}
+              isDisabled={currentPage === 1}
+              leftIcon={<ChevronLeftIcon />}
+              mr={4}
+            >
+              Previous
+            </Button>
+            <Text>
+              Page {currentPage} of {totalPages}
+            </Text>
+            <Button
+              onClick={() => handlePageChange("next")}
+              isDisabled={currentPage === totalPages}
+              rightIcon={<ChevronRightIcon />}
+              ml={4}
+            >
+              Next
+            </Button>
+          </Flex>
+        )}
       </Box>
 
       {/* Drawer for adding a new purchase */}
@@ -311,9 +414,7 @@ const PurchaseTracker = () => {
         <DrawerOverlay />
         <DrawerContent>
           <DrawerCloseButton />
-          <DrawerHeader borderBottomWidth="1px" bg="gray.100" p={4}>
-            <Heading size="lg">Add New Purchase</Heading>
-          </DrawerHeader>
+          <DrawerHeader borderBottomWidth="1px">Add New Purchase</DrawerHeader>
           <DrawerBody padding={8} bg="gray.50">
             <VStack spacing={8} align="stretch">
               <FormControl isInvalid={formErrors.title} isRequired>
@@ -323,7 +424,7 @@ const PurchaseTracker = () => {
                   name="title"
                   value={purchaseForm.title}
                   onChange={handleInputChange}
-                  placeholder="Enter game title"
+                  placeholder="Enter purchase title"
                 />
                 {formErrors.title && (
                   <FormErrorMessage>{formErrors.title}</FormErrorMessage>
@@ -349,6 +450,7 @@ const PurchaseTracker = () => {
                   onChange={handleInputChange}
                   min="0"
                   step="0.01"
+                  placeholder="Enter price"
                 />
                 {formErrors.price && (
                   <FormErrorMessage>{formErrors.price}</FormErrorMessage>
@@ -375,7 +477,7 @@ const PurchaseTracker = () => {
                   name="reason"
                   value={purchaseForm.reason}
                   onChange={handleInputChange}
-                  placeholder="Explain why you bought this game"
+                  placeholder="Explain why you bought this item"
                   resize="vertical"
                 />
                 {formErrors.reason && (
@@ -390,6 +492,8 @@ const PurchaseTracker = () => {
               colorScheme="blue"
               type="submit"
               onClick={handleSubmit}
+              isLoading={submitting}
+              loadingText="Submitting"
             >
               Submit
             </Button>

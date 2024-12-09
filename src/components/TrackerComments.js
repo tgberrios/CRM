@@ -16,6 +16,8 @@ import {
   Input,
   useToast,
   IconButton,
+  Skeleton,
+  SkeletonText,
 } from "@chakra-ui/react";
 import { CopyIcon } from "@chakra-ui/icons";
 import { useNavigate } from "react-router-dom";
@@ -29,7 +31,6 @@ const debounce = (func, delay) => {
   };
 };
 
-// Optimized TrackersComments component
 const TrackersComments = () => {
   const navigate = useNavigate();
   const toast = useToast();
@@ -37,13 +38,10 @@ const TrackersComments = () => {
   const [filteredData, setFilteredData] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Function to load and process the Excel file asynchronously
   const loadExcel = useCallback(async () => {
     try {
-      console.log("Attempting to load Excel via IPC");
       const response = await window.cert.loadCommentsExcel();
       if (response.success) {
-        console.log("Excel data received:", response.data);
         const jsonData = response.data;
         const headers = jsonData[0];
         const rows = jsonData.slice(1).map((row) => {
@@ -66,7 +64,6 @@ const TrackersComments = () => {
           const key = keyFields
             .map((field) => {
               let value = row[field] || "";
-              // Remove line breaks, trim spaces, and convert to lowercase
               value = value.replace(/\s+/g, " ").trim().toLowerCase();
               return value;
             })
@@ -136,7 +133,6 @@ const TrackersComments = () => {
   return (
     <Box bg="gray.50" minH="100vh" py={6}>
       <Container maxW="container.xl">
-        {/* Search bar with navigation button */}
         <Flex mb={4} align="center">
           <Input
             id="search-input"
@@ -157,16 +153,36 @@ const TrackersComments = () => {
           </Button>
         </Flex>
 
-        {/* Loading indicator */}
         {loading ? (
-          <Flex justify="center" align="center" minH="200px">
-            <Spinner size="xl" color="green.500" />
-          </Flex>
+          // Show skeleton loading while fetching data
+          <Box overflowX="auto" borderRadius="md" boxShadow="md">
+            <Table variant="simple">
+              <Thead bg="#A5BFA1">
+                <Tr>
+                  {[...Array(4)].map((_, i) => (
+                    <Th key={i} color="white" fontSize="md" py={4}>
+                      <Skeleton height="20px" />
+                    </Th>
+                  ))}
+                </Tr>
+              </Thead>
+              <Tbody>
+                {[...Array(5)].map((_, rowIndex) => (
+                  <Tr key={rowIndex}>
+                    {[...Array(4)].map((_, cellIndex) => (
+                      <Td key={cellIndex} py={4} px={4}>
+                        <SkeletonText noOfLines={2} spacing="4" />
+                      </Td>
+                    ))}
+                  </Tr>
+                ))}
+              </Tbody>
+            </Table>
+          </Box>
         ) : filteredData.length > 0 ? (
           <Box overflowX="auto" borderRadius="md" boxShadow="md">
             <Table variant="simple">
               <Thead bg="#A5BFA1">
-                {/* Use background color for header */}
                 <Tr>
                   {Object.keys(filteredData[0]).map((header, index) => (
                     <Th

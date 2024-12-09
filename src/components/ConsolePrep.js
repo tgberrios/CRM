@@ -39,6 +39,8 @@ import {
   Wrap,
   WrapItem,
   IconButton,
+  Skeleton,
+  SkeletonText,
 } from "@chakra-ui/react";
 import { format, addDays, parse } from "date-fns";
 import { useNavigate } from "react-router-dom";
@@ -57,10 +59,10 @@ import {
   FaRandom,
 } from "react-icons/fa";
 
-// Función de utilidad para verificar si el nombre incluye [LEAD]
+// Utility function to check if the name includes [LEAD]
 const isLead = (name) => name.includes("[LEAD]");
 
-// Componente reutilizable para mostrar nombres con estilos condicionales
+// Reusable component to display names with conditional styling
 const NameDisplay = React.memo(({ name }) => {
   const isLeadName = isLead(name);
   return (
@@ -73,7 +75,7 @@ const NameDisplay = React.memo(({ name }) => {
   );
 });
 
-// Definición de roles disponibles
+// Available roles definition
 const AVAILABLE_ROLES = [
   { value: "tester", label: "Tester" },
   { value: "lead", label: "Lead" },
@@ -85,7 +87,7 @@ const AVAILABLE_ROLES = [
   { value: "qa", label: "QA" },
 ];
 
-// Funciones auxiliares para manejar roles
+// Helper functions to handle roles
 const parseRoles = (roleString) =>
   roleString
     ? roleString
@@ -96,10 +98,10 @@ const parseRoles = (roleString) =>
 
 const joinRoles = (rolesArray) => rolesArray.join(", ");
 
-// Función para formatear la fecha
+// Function to format the date
 const formatDate = (date) => format(date, "MM-dd-yyyy");
 
-// Componente optimizado PersonnelBox
+// Optimized PersonnelBox component
 const PersonnelBox = React.memo(
   ({
     person,
@@ -149,7 +151,7 @@ const PersonnelBox = React.memo(
               size="sm"
               focusBorderColor="teal.400"
             />
-            {/* Botón para eliminar miembro */}
+            {/* Button to remove member */}
             <IconButton
               icon={<FaTrash />}
               colorScheme="red"
@@ -181,7 +183,7 @@ const PersonnelBox = React.memo(
   }
 );
 
-// Componente optimizado TeamCard
+// Optimized TeamCard component
 const TeamCard = React.memo(
   ({
     team,
@@ -263,14 +265,12 @@ const TeamCard = React.memo(
 );
 
 const ConsolePrep = () => {
-  const [selectedDate, setSelectedDate] = useState(
-    formatDate(new Date()) // Asegúrate de usar `formatDate` aquí
-  );
+  const [selectedDate, setSelectedDate] = useState(formatDate(new Date())); // Ensure using `formatDate` here
   const [currentTeams, setCurrentTeams] = useState([]);
   const [history, setHistory] = useState([]);
   const [isDateModalOpen, setIsDateModalOpen] = useState(false);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [isEditing, setIsEditing] = useState(false); // Inicializado en false
+  const [isEditing, setIsEditing] = useState(false); // Initialized as false
   const [personnelList, setPersonnelList] = useState([]);
   const [selectedPersonnel, setSelectedPersonnel] = useState(null);
   const [newPersonnel, setNewPersonnel] = useState({ name: "", roles: [] });
@@ -289,15 +289,15 @@ const ConsolePrep = () => {
   const toast = useToast();
   const navigate = useNavigate();
 
-  // Nuevos estados para el modal de contraseña y autenticación
+  // New states for password modal and authentication
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState(null);
   const [passwordInput, setPasswordInput] = useState("");
 
-  // Nuevo estado para la entrada a eliminar
+  // New state for entry to delete
   const [entryToDelete, setEntryToDelete] = useState(null);
 
-  // Definir mapeo de días laborables
+  // Define mapping of workdays
   const workDaysMapping = useMemo(
     () => ({
       "mon-fri": [1, 2, 3, 4, 5],
@@ -307,11 +307,11 @@ const ConsolePrep = () => {
     []
   );
 
-  // Analizar selectedDate y obtener el día de la semana
+  // Parse selectedDate and get the day of the week
   const parsedSelectedDate = useMemo(() => {
     if (typeof selectedDate !== "string") {
       console.error("selectedDate is not a string:", selectedDate);
-      return new Date(); // Valor predeterminado en caso de error
+      return new Date(); // Default value in case of error
     }
     return parse(selectedDate, "MM-dd-yyyy", new Date());
   }, [selectedDate]);
@@ -321,7 +321,7 @@ const ConsolePrep = () => {
     [parsedSelectedDate]
   );
 
-  // Cargar datos cuando el componente se monta o selectedDate cambia
+  // Load data when the component mounts or selectedDate changes
   useEffect(() => {
     loadData(selectedDate);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -346,13 +346,13 @@ const ConsolePrep = () => {
         console.log("History data:", historyData);
         console.log("Workdays data:", workdaysData);
 
-        // Eliminar duplicados en historyData
+        // Remove duplicates in historyData
         const dateToEntryMap = {};
         historyData.forEach((entry) => {
           if (!dateToEntryMap[entry.date]) {
             dateToEntryMap[entry.date] = entry;
           } else {
-            // Mantener la entrada más reciente basada en ID
+            // Keep the most recent entry based on ID
             if (entry.id > dateToEntryMap[entry.date].id) {
               dateToEntryMap[entry.date] = entry;
             }
@@ -362,13 +362,13 @@ const ConsolePrep = () => {
         console.log("Unique History Data:", uniqueHistoryData);
         setHistory(uniqueHistoryData);
 
-        // Obtener personal ausente para la fecha seleccionada desde localStorage
+        // Get absent personnel for the selected date from localStorage
         const absentData =
           JSON.parse(localStorage.getItem("absent_personnel")) || {};
         const absentPersonnelForDate = absentData[date] || [];
         console.log(`Absent personnel for ${date}:`, absentPersonnelForDate);
 
-        // Filtrar personal disponible que no esté ausente
+        // Filter available personnel who are not absent
         const availablePersonnel = personnel.filter((person) => {
           const workDaysEntry = workdaysData.find(
             (wd) => wd.personnel_id === person.id
@@ -383,7 +383,7 @@ const ConsolePrep = () => {
         console.log("Available Personnel:", availablePersonnel);
         setPersonnelList(availablePersonnel);
 
-        // Corregir la comparación de fechas
+        // Correct date comparison
         const validHistoryEntries = uniqueHistoryData.filter(
           (entry) =>
             format(new Date(entry.date), "MM-dd-yyyy") === date &&
@@ -395,13 +395,13 @@ const ConsolePrep = () => {
         console.log("History Entry for selected date:", historyEntry);
 
         if (historyEntry) {
-          // Validar y analizar historyEntry.data
+          // Validate and parse historyEntry.data
           let parsedData;
           try {
             parsedData = JSON.parse(historyEntry.data);
             console.log("Parsed Data:", parsedData);
 
-            // Verificar si parsedData es una cadena (indicando doble serialización)
+            // Check if parsedData is a string (indicating double serialization)
             if (typeof parsedData === "string") {
               parsedData = JSON.parse(parsedData);
               console.log("Double serialization detected. Data corrected.");
@@ -428,10 +428,10 @@ const ConsolePrep = () => {
             }));
             console.log("Parsed Teams:", parsedTeams);
             setCurrentTeams(parsedTeams);
-            setIsEditing(false); // Asegurarse de que no está en modo edición
+            setIsEditing(false); // Ensure not in edit mode
           } else {
             console.error("Parsed data is not an array:", parsedData);
-            // Manejar el caso donde data no es un array
+            // Handle case where data is not an array
             toast({
               title: "Invalid Data",
               description: "The stored configuration is invalid.",
@@ -439,11 +439,11 @@ const ConsolePrep = () => {
               duration: 3000,
               isClosable: true,
             });
-            // Opcionalmente, establecer un valor predeterminado o tomar otras acciones
+            // Optionally, set a default value or take other actions
             setCurrentTeams([]);
           }
         } else {
-          // Si no hay configuración previa, inicializar equipos con personal sin asignar
+          // If no previous configuration, initialize teams with unassigned personnel
           const initialTeamsData = teams.map((team) => ({
             ...team,
             personnel: Array(5).fill({ name: "", role: "" }),
@@ -453,10 +453,10 @@ const ConsolePrep = () => {
             initialTeamsData
           );
           setCurrentTeams(initialTeamsData);
-          // setIsEditing(true); // REMOVIDO para que nunca se abra en modo edición
+          // setIsEditing(true); // REMOVED to prevent opening in edit mode
         }
 
-        // Mapear workDays
+        // Map workDays
         const workDaysMap = {};
         workdaysData.forEach((wd) => {
           workDaysMap[wd.personnel_id] = wd.work_days;
@@ -479,7 +479,7 @@ const ConsolePrep = () => {
     [toast, workDaysMapping, dayOfWeek]
   );
 
-  // Manejar cambios en los inputs
+  // Handle input changes
   const handleInputChange = useCallback((team_id, index, field, value) => {
     console.log(
       `Input Change - Team ID: ${team_id}, Index: ${index}, Field: ${field}, Value: ${value}`
@@ -499,7 +499,7 @@ const ConsolePrep = () => {
     );
   }, []);
 
-  // Añadir un miembro al equipo
+  // Add a member to the team
   const handleAddMember = useCallback((team_id) => {
     console.log(`Adding member to Team ID: ${team_id}`);
     setCurrentTeams((prevTeams) =>
@@ -515,7 +515,7 @@ const ConsolePrep = () => {
     );
   }, []);
 
-  // Eliminar un miembro del equipo
+  // Remove a member from the team
   const handleRemoveMember = useCallback((team_id, index) => {
     console.log(`Removing member from Team ID: ${team_id}, Index: ${index}`);
     setCurrentTeams((prevTeams) =>
@@ -534,7 +534,7 @@ const ConsolePrep = () => {
     );
   }, []);
 
-  // Manejar cambios de roles en el Modal de Edición de Personal
+  // Handle role changes in the Personnel Editing Modal
   const handleRoleChange = useCallback((selectedOptions) => {
     console.log("Roles changed:", selectedOptions);
     setEditPersonnel((prev) => ({
@@ -545,17 +545,17 @@ const ConsolePrep = () => {
     }));
   }, []);
 
-  // Guardar en historial
+  // Save to history
   const saveToHistory = useCallback(async () => {
     console.log("Saving current configuration to history...");
     try {
-      // Obtener historial actual
+      // Get current history
       const historyData = await window.cert.getConfigHistory();
       const existingEntry = historyData.find(
         (entry) => format(new Date(entry.date), "MM-dd-yyyy") === selectedDate
       );
 
-      // Asegurar que currentTeams es un array
+      // Ensure currentTeams is an array
       if (!Array.isArray(currentTeams)) {
         throw new Error("currentTeams is not an array.");
       }
@@ -563,16 +563,16 @@ const ConsolePrep = () => {
       const historyEntry = {
         id: existingEntry ? existingEntry.id : undefined,
         date: selectedDate,
-        data: JSON.stringify(currentTeams), // Serializar una vez
+        data: JSON.stringify(currentTeams), // Serialize once
       };
 
       if (existingEntry) {
         console.log("Updating existing history entry:", historyEntry);
-        // Actualizar entrada existente
+        // Update existing entry
         await window.cert.updateConfigHistory(historyEntry);
       } else {
         console.log("Adding new history entry:", historyEntry);
-        // Añadir una nueva entrada
+        // Add a new entry
         await window.cert.addConfigHistory(historyEntry);
       }
 
@@ -596,7 +596,7 @@ const ConsolePrep = () => {
     }
   }, [selectedDate, currentTeams, toast]);
 
-  // Manejar nueva configuración
+  // Handle new configuration
   const handleNewConfig = useCallback(() => {
     console.log("Initiating creation of new configuration...");
     setPendingAction("new");
@@ -617,13 +617,13 @@ const ConsolePrep = () => {
       console.log("Initial Teams Data for New Config:", initialTeamsData);
       await window.cert.addConfigHistory({
         date: formattedDate,
-        data: JSON.stringify(initialTeamsData), // Serializar una vez
+        data: JSON.stringify(initialTeamsData), // Serialize once
       });
       setSelectedDate(formattedDate);
       setIsDateModalOpen(false);
-      // setIsEditing(true); // REMOVIDO para que nunca se abra en modo edición
+      // setIsEditing(true); // REMOVED to prevent opening in edit mode
 
-      // Almacenar personal ausente en localStorage
+      // Store absent personnel in localStorage
       const absentData =
         JSON.parse(localStorage.getItem("absent_personnel")) || {};
       absentData[formattedDate] = absentPersonnel;
@@ -662,7 +662,7 @@ const ConsolePrep = () => {
         setPersonnelList((prev) => [...prev, addedPerson]);
         setNewPersonnel({ name: "", roles: [] });
         setIsAddPersonnelModalOpen(false);
-        // Después de añadir personal, establecer días laborables si se seleccionan
+        // After adding personnel, set workdays if selected
         if (newPersonnelWorkDays) {
           await handleWorkDayChange(addedPerson.id, newPersonnelWorkDays);
         }
@@ -696,9 +696,9 @@ const ConsolePrep = () => {
   }, [newPersonnel, toast, handleWorkDayChange, newPersonnelWorkDays]);
 
   const handleDateSelect = useCallback((date) => {
-    const formattedDate = formatDate(date); // Convertir a formato consistente
+    const formattedDate = formatDate(date); // Convert to consistent format
     console.log(`Date selected: ${formattedDate}`);
-    setSelectedDate(formattedDate); // Guardar como cadena formateada
+    setSelectedDate(formattedDate); // Save as formatted string
   }, []);
 
   const handleEditPersonnel = useCallback((person) => {
@@ -826,16 +826,17 @@ const ConsolePrep = () => {
     [workDays, toast]
   );
 
+  // Handle sending email
   const handleSendEmail = useCallback(() => {
     console.log("Sending email with current configuration.");
-    // Filtrar equipos que tienen al menos un miembro asignado
+    // Filter teams that have at least one assigned member
     const assignedTeams = currentTeams.filter((team) =>
       team.personnel.some(
         (person) => person.name && person.role && person.role !== "No role"
       )
     );
 
-    // Verificar si hay equipos asignados
+    // Check if there are assigned teams
     if (assignedTeams.length === 0) {
       toast({
         title: "No Assignments",
@@ -847,17 +848,17 @@ const ConsolePrep = () => {
       return;
     }
 
-    // Definir anchos de columna fijos
+    // Define fixed column widths
     const nameColumnWidth = 20;
     const roleColumnWidth = 30;
 
-    // Función auxiliar para formatear texto con alineación
+    // Helper function to format text with alignment
     const formatText = (text, width, align = "left") => {
       if (text.length > width) {
-        // Si el texto es más largo que el ancho especificado, simplemente lo dejamos tal cual.
+        // If text is longer than specified width, leave it as is.
         return text;
       } else {
-        // Si el texto es más corto que el ancho especificado, agregamos padding para la alineación.
+        // If text is shorter than specified width, add padding for alignment.
         const padding = width - text.length;
         if (align === "left") {
           return text + " ".repeat(padding);
@@ -871,10 +872,10 @@ const ConsolePrep = () => {
       }
     };
 
-    // Array de emojis de círculos de colores
+    // Array of colored circle emojis
     const coloredCircles = ["🔴", "🟠", "🟡", "🟢", "🔵", "🟣", "⚫", "⚪"];
 
-    // Construir el resumen de equipos y personal asignado con mejor formato
+    // Build the summary of teams and assigned personnel with better formatting
     let teamSummary = `Console Preparation Distribution for ${selectedDate} \n\n`;
 
     assignedTeams.forEach((team, index) => {
@@ -915,15 +916,15 @@ const ConsolePrep = () => {
 
     console.log("Email Body:", teamSummary);
 
-    // Codificar el cuerpo del email
+    // Encode the email body
     const emailBody = encodeURIComponent(teamSummary);
 
-    // Generar el enlace mailto
+    // Generate the mailto link
     const mailtoLink = `mailto:?subject=${encodeURIComponent(
       `Console Preparation Distribution for ${selectedDate}`
     )}&body=${emailBody}`;
 
-    // Abrir el cliente de correo predeterminado
+    // Open the default email client
     window.location.href = mailtoLink;
   }, [currentTeams, selectedDate, toast]);
 
@@ -935,10 +936,10 @@ const ConsolePrep = () => {
     [handleEditPersonnel]
   );
 
-  // Manejar envío de contraseña
+  // Handle password submission
   const handlePasswordSubmit = useCallback(() => {
     console.log("Submitting password for pending action:", pendingAction);
-    const adminPassword = "!! abc 123"; // Asegúrate de almacenar esto de forma segura
+    const adminPassword = "!! abc 123"; // Ensure to store this securely
     if (passwordInput === adminPassword) {
       console.log("Password correct. Proceeding with action:", pendingAction);
       setIsPasswordModalOpen(false);
@@ -996,7 +997,7 @@ const ConsolePrep = () => {
     async (entry) => {
       console.log(`Proceeding to delete configuration for date: ${entry.date}`);
       try {
-        // Confirmar eliminación
+        // Confirm deletion
         const confirmed = window.confirm(
           `Are you sure you want to delete the configuration for ${formatDate(
             new Date(entry.date)
@@ -1006,9 +1007,9 @@ const ConsolePrep = () => {
           await window.cert.deleteConfigHistory(entry.date);
           console.log(`Configuration for date ${entry.date} deleted.`);
 
-          // Actualizar historial después de la eliminación
+          // Update history after deletion
           const historyData = await window.cert.getConfigHistory();
-          // Eliminar duplicados
+          // Remove duplicates
           const dateToEntryMap = {};
           historyData.forEach((entry) => {
             if (!dateToEntryMap[entry.date]) {
@@ -1026,14 +1027,14 @@ const ConsolePrep = () => {
           );
           setHistory(uniqueHistoryData);
 
-          // Si la fecha eliminada es la fecha seleccionada, reiniciar la selección
+          // If the deleted date is the selected date, reset the selection
           if (formatDate(new Date(entry.date)) === selectedDate) {
             const tomorrow = formatDate(addDays(new Date(), 1));
             console.log(
               `Selected date was deleted. Setting new selected date to tomorrow: ${tomorrow}`
             );
             setSelectedDate(tomorrow);
-            // Cargar datos para la nueva fecha seleccionada
+            // Load data for the new selected date
             loadData(tomorrow);
           }
 
@@ -1057,14 +1058,14 @@ const ConsolePrep = () => {
           isClosable: true,
         });
       } finally {
-        // Reiniciar el estado entryToDelete después de intentar eliminar
+        // Reset the entryToDelete state after attempting to delete
         setEntryToDelete(null);
       }
     },
     [toast, selectedDate, loadData]
   );
 
-  // Memoizar equipos y lista filtrada de personal
+  // Memoize teams and filtered personnel list
   const memoizedTeams = useMemo(() => currentTeams, [currentTeams]);
 
   const filteredPersonnelList = useMemo(
@@ -1075,10 +1076,10 @@ const ConsolePrep = () => {
     [personnelList, searchQuery]
   );
 
-  // Función para aleatorizar personal (sin validaciones)
+  // Function to randomize personnel assignments (without validations)
   const handleRandomize = useCallback(() => {
     console.log("Randomizing personnel assignments.");
-    // Filtrar personal disponible por roles específicos
+    // Filter available personnel by specific roles
     const availableManagers = personnelList.filter((person) =>
       parseRoles(person.role).includes("manager")
     );
@@ -1098,10 +1099,10 @@ const ConsolePrep = () => {
       parseRoles(person.role).includes("tester")
     );
 
-    // Función para mezclar
+    // Shuffle function
     const shuffle = (array) => array.sort(() => Math.random() - 0.5);
 
-    // Mezclar leads y testers
+    // Shuffle leads and testers
     const shuffledManagers = shuffle([...availableManagers]);
     const shuffledSeniorLeads = shuffle([...availableSeniorLeads]);
     const shuffledRMLs = shuffle([...availableRMLs]);
@@ -1109,16 +1110,16 @@ const ConsolePrep = () => {
     const shuffledLeads = shuffle([...availableLeads]);
     const shuffledTesters = shuffle([...availableTesters]);
 
-    // Rastrear IDs asignados para evitar duplicados
+    // Track assigned IDs to avoid duplicates
     const assignedIds = new Set();
 
-    // Crear nuevas configuraciones de equipo con asignaciones aleatorias
+    // Create new team configurations with random assignments
     const newTeams = currentTeams.map((team) => {
       const newPersonnel = team.personnel.map((person, index) => {
         if (person.role && person.role.trim() !== "") {
-          // Asignar basado en rol específico
+          // Assign based on specific role
           if (parseRoles(person.role).includes("manager")) {
-            // Asignar un Manager
+            // Assign a Manager
             const manager = shuffledManagers.find(
               (p) => !assignedIds.has(p.id)
             );
@@ -1129,7 +1130,7 @@ const ConsolePrep = () => {
               return { ...person, name: "No Manager Available" };
             }
           } else if (parseRoles(person.role).includes("senior_lead")) {
-            // Asignar un Senior Lead
+            // Assign a Senior Lead
             const seniorLead = shuffledSeniorLeads.find(
               (p) => !assignedIds.has(p.id)
             );
@@ -1140,7 +1141,7 @@ const ConsolePrep = () => {
               return { ...person, name: "No Senior Lead Available" };
             }
           } else if (parseRoles(person.role).includes("rml")) {
-            // Asignar un RML
+            // Assign an RML
             const rml = shuffledRMLs.find((p) => !assignedIds.has(p.id));
             if (rml) {
               assignedIds.add(rml.id);
@@ -1149,7 +1150,7 @@ const ConsolePrep = () => {
               return { ...person, name: "No RML Available" };
             }
           } else if (parseRoles(person.role).includes("labtech")) {
-            // Asignar un LabTech
+            // Assign a LabTech
             const labTech = shuffledLabTechs.find(
               (p) => !assignedIds.has(p.id)
             );
@@ -1160,7 +1161,7 @@ const ConsolePrep = () => {
               return { ...person, name: "No LabTech Available" };
             }
           } else if (parseRoles(person.role).includes("lead")) {
-            // Asignar un Lead
+            // Assign a Lead
             const lead = shuffledLeads.find((p) => !assignedIds.has(p.id));
             if (lead) {
               assignedIds.add(lead.id);
@@ -1169,7 +1170,7 @@ const ConsolePrep = () => {
               return { ...person, name: "No Lead Available" };
             }
           } else {
-            // Asignar un Tester
+            // Assign a Tester
             const tester = shuffledTesters.find((p) => !assignedIds.has(p.id));
             if (tester) {
               assignedIds.add(tester.id);
@@ -1185,7 +1186,7 @@ const ConsolePrep = () => {
       return { ...team, personnel: newPersonnel };
     });
 
-    // Actualizar estado con nuevos equipos
+    // Update state with new teams
     setCurrentTeams(newTeams);
     console.log("Randomized Teams:", newTeams);
     toast({
@@ -1199,7 +1200,7 @@ const ConsolePrep = () => {
 
   const handleDeleteDate = useCallback((entry) => {
     console.log("Deleting date entry:", entry);
-    // Guardar la entrada a eliminar y abrir el modal de contraseña
+    // Save the entry to delete and open the password modal
     setEntryToDelete(entry);
     setPendingAction("delete");
     setIsPasswordModalOpen(true);
@@ -1207,7 +1208,7 @@ const ConsolePrep = () => {
 
   return (
     <Box display="flex" flexDirection={{ base: "column", lg: "row" }}>
-      {/* Área Principal */}
+      {/* Main Area */}
       <Box flex="1" p={4} bg="gray.100" minHeight="100vh">
         <Heading as="h1" size="lg" mb={4} color="teal.700">
           Console Preparation
@@ -1306,7 +1307,8 @@ const ConsolePrep = () => {
 
         {loading ? (
           <Box textAlign="center" mt={10}>
-            <Spinner size="lg" color="teal.500" />
+            <Skeleton height="40px" mb={4} />
+            <SkeletonText mt="4" noOfLines={4} spacing="4" />
           </Box>
         ) : currentTeams.length === 0 ? (
           <Text textAlign="center" color="gray.600" fontSize="md">
@@ -1329,7 +1331,7 @@ const ConsolePrep = () => {
 
         <Divider my={4} />
 
-        {/* Modal de Contraseña */}
+        {/* Password Modal */}
         <Modal
           isOpen={isPasswordModalOpen}
           onClose={() => {
@@ -1373,7 +1375,7 @@ const ConsolePrep = () => {
           </ModalContent>
         </Modal>
 
-        {/* Modal de Nueva Configuración */}
+        {/* New Configuration Modal */}
         <Modal
           isOpen={isDateModalOpen}
           onClose={() => setIsDateModalOpen(false)}
@@ -1389,10 +1391,10 @@ const ConsolePrep = () => {
                   Please select the date for the new console preparation:
                 </Text>
                 <DatePicker
-                  selected={new Date(newConfigDate)} // Convierte a objeto Date si es necesario
-                  onChange={(date) => setNewConfigDate(formatDate(date))} // Convierte a string legible
+                  selected={new Date(newConfigDate)} // Convert to Date object if necessary
+                  onChange={(date) => setNewConfigDate(formatDate(date))} // Convert to readable string
                   dateFormat="MM-dd-yyyy"
-                  minDate={new Date()} // Asegúrate de usar Date válido
+                  minDate={new Date()} // Ensure using a valid Date
                   customInput={<Input size="sm" />}
                 />
                 <Divider />
@@ -1441,7 +1443,7 @@ const ConsolePrep = () => {
           </ModalContent>
         </Modal>
 
-        {/* Modal para Añadir Personal */}
+        {/* Add Personnel Modal */}
         <Modal
           isOpen={isAddPersonnelModalOpen}
           onClose={() => setIsAddPersonnelModalOpen(false)}
@@ -1463,7 +1465,7 @@ const ConsolePrep = () => {
                   focusBorderColor="teal.400"
                 />
               </FormControl>
-              {/* Multi-Select para Roles */}
+              {/* Multi-Select for Roles */}
               <FormControl mb={2}>
                 <FormLabel>Select Roles</FormLabel>
                 <Select
@@ -1518,7 +1520,7 @@ const ConsolePrep = () => {
           </ModalContent>
         </Modal>
 
-        {/* Cajón para Selección de Fecha */}
+        {/* Date Selection Drawer */}
         <Drawer
           isOpen={isDrawerOpen}
           placement="left"
@@ -1532,7 +1534,7 @@ const ConsolePrep = () => {
             <DrawerBody>
               <List spacing={1}>
                 {history
-                  .sort((a, b) => new Date(b.date) - new Date(a.date)) // Asegúrate de que date sea un Date válido
+                  .sort((a, b) => new Date(b.date) - new Date(a.date)) // Ensure date is a valid Date
                   .map((entry) => (
                     <ListItem
                       key={entry.id}
@@ -1560,7 +1562,7 @@ const ConsolePrep = () => {
                           }
                         >
                           {formatDate(new Date(entry.date))}{" "}
-                          {/* Asegúrate de convertir a string */}
+                          {/* Ensure to convert to string */}
                         </Box>
                         <IconButton
                           icon={<FaTrash />}
@@ -1579,7 +1581,7 @@ const ConsolePrep = () => {
         </Drawer>
       </Box>
 
-      {/* Sidebar de Personnel */}
+      {/* Personnel Sidebar */}
       <Box
         w={{ base: "100%", lg: "300px" }}
         p={2}
@@ -1604,7 +1606,7 @@ const ConsolePrep = () => {
             const isAssigned =
               currentTeams.some((team) =>
                 team.personnel.some((p) => p.name === person.name)
-              ) || isLead(person.name); // Considerar [LEAD] como asignado
+              ) || isLead(person.name); // Consider [LEAD] as assigned
 
             return (
               <ListItem
@@ -1651,7 +1653,7 @@ const ConsolePrep = () => {
         </List>
       </Box>
 
-      {/* Modal de Personal */}
+      {/* Personnel Modal */}
       {selectedPersonnel && (
         <Modal
           isOpen={isPersonnelModalOpen}
@@ -1662,7 +1664,7 @@ const ConsolePrep = () => {
             <ModalHeader>Edit Personnel</ModalHeader>
             <ModalCloseButton />
             <ModalBody>
-              {/* Campo de Nombre */}
+              {/* Name Field */}
               <FormControl mb={2}>
                 <FormLabel>Name</FormLabel>
                 <Input
@@ -1679,7 +1681,7 @@ const ConsolePrep = () => {
                 />
               </FormControl>
 
-              {/* Multi-Select para Roles */}
+              {/* Multi-Select for Roles */}
               <FormControl mb={2}>
                 <FormLabel>Select Roles</FormLabel>
                 <Select
@@ -1699,7 +1701,7 @@ const ConsolePrep = () => {
                 />
               </FormControl>
 
-              {/* Selección de Días Laborables */}
+              {/* Work Days Selection */}
               <FormControl>
                 <FormLabel>Set Work Days</FormLabel>
                 <ChakraSelect
@@ -1744,5 +1746,5 @@ const ConsolePrep = () => {
   );
 };
 
-// Exportar el componente
+// Export the component
 export default ConsolePrep;

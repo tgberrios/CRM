@@ -431,7 +431,7 @@ function createWindow() {
   mainWindow.once("ready-to-show", () => {
     mainWindow.show();
     mainWindow.maximize();
-    // mainWindow.webContents.openDevTools(); // Descomenta para depuración
+    // mainWindow.webContents.openDevTools();
   });
 
   mainWindow.on("closed", () => {
@@ -696,7 +696,7 @@ ipcMain.handle("add-review", async (event, review) => {
     performanceScore = 0,
     bugDetectionAccuracy = 0,
     testingEfficiency = 0,
-    communicationSkills = 0,
+    communicationskills = 0,
     creativity = 0,
     responsiveness = 0,
     punctuality = 0,
@@ -721,7 +721,7 @@ ipcMain.handle("add-review", async (event, review) => {
       performanceScore,
       bugDetectionAccuracy,
       testingEfficiency,
-      communicationSkills,
+      communicationskills,
       creativity,
       responsiveness,
       punctuality,
@@ -777,7 +777,7 @@ ipcMain.handle("update-review", async (event, review) => {
         performanceScore,
         bugDetectionAccuracy,
         testingEfficiency,
-        communicationSkills,
+        communicationskills,
         creativity,
         responsiveness,
         punctuality,
@@ -794,7 +794,7 @@ ipcMain.handle("update-review", async (event, review) => {
           performanceScore = $2,
           bugDetectionAccuracy = $3,
           testingEfficiency = $4,
-          communicationSkills = $5,
+          communicationskills = $5,
           creativity = $6,
           responsiveness = $7,
           punctuality = $8,
@@ -810,7 +810,7 @@ ipcMain.handle("update-review", async (event, review) => {
         performanceScore,
         bugDetectionAccuracy,
         testingEfficiency,
-        communicationSkills,
+        communicationskills,
         creativity,
         responsiveness,
         punctuality,
@@ -1518,7 +1518,9 @@ ipcMain.handle("get-trackers", async () => {
     const res = await pool.query("SELECT * FROM trackers");
     return res.rows.map((row) => ({
       ...row,
-      testCases: row.testCases ? JSON.parse(row.testCases) : [],
+      testcases: row.testcases || [],
+      invitesjoinsdata: row.invitesjoinsdata || [],
+      crashlogs: row.crashlogs || [],
     }));
   } catch (err) {
     console.error("Error obteniendo trackers:", err.message);
@@ -1536,61 +1538,115 @@ ipcMain.handle("add-tracker", async (event, tracker) => {
       const id = generateUniqueId();
       const {
         username,
-        titleName,
-        leadName,
-        testStartDate,
-        testEndDate,
-        sandboxIds,
-        recoveryVersion,
-        binaryId,
-        skuIdentifier,
-        xboxVersion,
-        simplifiedUserModel,
-        windowsVersion,
-        supportedPlatforms,
-        testModel,
-        testCases,
+        titlename,
+        leadname,
+        teststartdate,
+        testenddate,
+        sandboxids,
+        recoveryversion,
+        binaryid,
+        skuidentifier,
+        xboxversion,
+        simplifiedusermodel,
+        windowsversion,
+        supportedplatforms,
+        testmodel,
+        testcases,
         progress,
-        completedOn,
+        completedon,
+        crashlogs,
+        invitesjoinsdata,
       } = tracker;
 
-      const testCasesJson = JSON.stringify(testCases);
+      console.log("Datos recibidos para agregar:", tracker);
+
+      // Validar que testcases sea un array
+      if (!Array.isArray(testcases)) {
+        throw new Error("El campo 'testcases' debe ser un array.");
+      }
+
+      // Validar cada testCase
+      testcases.forEach((tc, index) => {
+        if (
+          typeof tc.id !== "string" ||
+          typeof tc.name !== "string" ||
+          typeof tc.status !== "string" ||
+          typeof tc.testerName !== "string" ||
+          typeof tc.comment !== "string" ||
+          typeof tc.posKey !== "string"
+        ) {
+          throw new Error(
+            `El testCase en el índice ${index} tiene campos inválidos.`
+          );
+        }
+      });
+
+      // Validar JSON
+      try {
+        console.log("Validando JSON...");
+        JSON.stringify(testcases);
+        JSON.stringify(crashlogs);
+        JSON.stringify(invitesjoinsdata);
+        console.log("Validación de JSON exitosa.");
+      } catch (err) {
+        throw new Error("Campos JSON malformados.");
+      }
+
+      // Agregar logs detallados
+      console.log("testcases como JSON:", JSON.stringify(testcases));
+      console.log("crashlogs como JSON:", JSON.stringify(crashlogs));
+      console.log(
+        "invitesjoinsdata como JSON:",
+        JSON.stringify(invitesjoinsdata)
+      );
 
       const query = `
-        INSERT INTO trackers (
-          id, username, titleName, leadName, testStartDate, testEndDate, 
-          sandboxIds, recoveryVersion, binaryId, skuIdentifier, xboxVersion, 
-          simplifiedUserModel, windowsVersion, supportedPlatforms, testModel, 
-          testCases, progress, completedOn
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18) RETURNING id
-      `;
+  INSERT INTO trackers (
+    id, username, titlename, leadname, teststartdate, testenddate, 
+    sandboxids, recoveryversion, binaryid, skuidentifier, xboxversion, 
+    simplifiedusermodel, windowsversion, supportedplatforms, testmodel, 
+    testcases, progress, completedon, invitesjoinsdata, crashlogs
+  ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16::jsonb, $17, $18, $19::jsonb, $20::jsonb)
+  RETURNING id
+`;
       const values = [
         id,
         username,
-        titleName,
-        leadName,
-        testStartDate,
-        testEndDate,
-        sandboxIds,
-        recoveryVersion,
-        binaryId,
-        skuIdentifier,
-        xboxVersion,
-        simplifiedUserModel,
-        windowsVersion,
-        supportedPlatforms,
-        testModel,
-        testCasesJson,
+        titlename,
+        leadname,
+        teststartdate,
+        testenddate,
+        sandboxids,
+        recoveryversion,
+        binaryid,
+        skuidentifier,
+        xboxversion,
+        simplifiedusermodel,
+        windowsversion,
+        supportedplatforms,
+        testmodel,
+        JSON.stringify(testcases), // Serializar manualmente
         progress,
-        completedOn || null,
+        completedon || null,
+        JSON.stringify(invitesjoinsdata) || "[]",
+        JSON.stringify(crashlogs) || "[]",
       ];
 
       try {
+        console.log(
+          "Preparando para ejecutar la consulta SQL con los siguientes valores:"
+        );
+        console.log("Values:", values);
         const res = await pool.query(query, values);
         tracker.id = res.rows[0].id;
+        console.log("Tracker agregado exitosamente:", tracker);
         return tracker;
       } catch (err) {
         console.error("Error agregando tracker:", err.message);
+        console.error("Contenido de los campos JSON:");
+        console.error("testcases:", JSON.stringify(testcases));
+        console.error("crashlogs:", JSON.stringify(crashlogs));
+        console.error("invitesjoinsdata:", JSON.stringify(invitesjoinsdata));
         throw err;
       }
     },
@@ -1602,76 +1658,172 @@ ipcMain.handle("add-tracker", async (event, tracker) => {
 ipcMain.handle("update-tracker", async (event, updatedTracker) => {
   return runWithRetry(
     async () => {
+      console.log("Datos recibidos para actualizar:", updatedTracker);
+
       const {
         id,
         username,
-        titleName,
-        leadName,
-        testStartDate,
-        testEndDate,
-        sandboxIds,
-        recoveryVersion,
-        binaryId,
-        skuIdentifier,
-        xboxVersion,
-        simplifiedUserModel,
-        windowsVersion,
-        supportedPlatforms,
-        testModel,
-        testCases,
+        titlename,
+        leadname,
+        teststartdate,
+        testenddate,
+        sandboxids,
+        recoveryversion,
+        binaryid,
+        skuidentifier,
+        xboxversion,
+        simplifiedusermodel,
+        windowsversion,
+        supportedplatforms,
+        testmodel,
+        testcases,
         progress,
-        completedOn,
+        completedon,
+        crashlogs,
+        invitesjoinsdata,
       } = updatedTracker;
 
-      const testCasesJson = JSON.stringify(testCases);
+      console.log("Tipo de testcases:", typeof testcases);
+      console.log("Tipo de crashlogs:", typeof crashlogs);
+      console.log("Tipo de invitesjoinsdata:", typeof invitesjoinsdata);
+
+      console.log("Contenido de testcases:", JSON.stringify(testcases));
+      console.log("Contenido de crashlogs:", JSON.stringify(crashlogs));
+      console.log(
+        "Contenido de invitesjoinsdata:",
+        JSON.stringify(invitesjoinsdata)
+      );
+
+      // Validar que testcases sea un array
+      if (!Array.isArray(testcases)) {
+        throw new Error("El campo 'testcases' debe ser un array.");
+      }
+
+      // Validar cada testCase
+      testcases.forEach((tc, index) => {
+        if (
+          typeof tc.id !== "string" ||
+          typeof tc.name !== "string" ||
+          typeof tc.status !== "string" ||
+          typeof tc.testerName !== "string" ||
+          typeof tc.comment !== "string" ||
+          typeof tc.posKey !== "string"
+        ) {
+          throw new Error(
+            `El testCase en el índice ${index} tiene campos inválidos.`
+          );
+        }
+      });
+
+      // Validar que crashlogs e invitesjoinsdata sean arrays
+      if (!Array.isArray(crashlogs)) {
+        throw new Error("El campo 'crashlogs' debe ser un array.");
+      }
+
+      if (!Array.isArray(invitesjoinsdata)) {
+        throw new Error("El campo 'invitesjoinsdata' debe ser un array.");
+      }
+
+      // Validar JSON
+      try {
+        console.log("Validando JSON...");
+        JSON.stringify(testcases);
+        JSON.stringify(crashlogs);
+        JSON.stringify(invitesjoinsdata);
+        console.log("Validación de JSON exitosa.");
+      } catch (err) {
+        throw new Error("Campos JSON malformados.");
+      }
+
+      // Agregar logs detallados antes de la consulta
+      console.log(
+        "Preparando para actualizar el tracker con los siguientes valores:"
+      );
+      console.log("ID del Tracker:", id);
+      console.log("Username:", username);
+      console.log("Title Name:", titlename);
+      console.log("Lead Name:", leadname);
+      console.log("Test Start Date:", teststartdate);
+      console.log("Test End Date:", testenddate);
+      console.log("Sandbox IDs:", sandboxids);
+      console.log("Recovery Version:", recoveryversion);
+      console.log("Binary ID:", binaryid);
+      console.log("SKU Identifier:", skuidentifier);
+      console.log("Xbox Version:", xboxversion);
+      console.log("Simplified User Model:", simplifiedusermodel);
+      console.log("Windows Version:", windowsversion);
+      console.log("Supported Platforms:", supportedplatforms);
+      console.log("Test Model:", testmodel);
+      console.log("Test Cases:", JSON.stringify(testcases));
+      console.log("Progress:", progress);
+      console.log("Completed On:", completedon);
+      console.log("Invites & Joins Data:", JSON.stringify(invitesjoinsdata));
+      console.log("Crash Logs:", JSON.stringify(crashlogs));
 
       const query = `
         UPDATE trackers SET
           username = $1,
-          titleName = $2,
-          leadName = $3,
-          testStartDate = $4,
-          testEndDate = $5,
-          sandboxIds = $6,
-          recoveryVersion = $7,
-          binaryId = $8,
-          skuIdentifier = $9,
-          xboxVersion = $10,
-          simplifiedUserModel = $11,
-          windowsVersion = $12,
-          supportedPlatforms = $13,
-          testModel = $14,
-          testCases = $15,
+          titlename = $2,
+          leadname = $3,
+          teststartdate = $4,
+          testenddate = $5,
+          sandboxids = $6,
+          recoveryversion = $7,
+          binaryid = $8,
+          skuidentifier = $9,
+          xboxversion = $10,
+          simplifiedusermodel = $11,
+          windowsversion = $12,
+          supportedplatforms = $13,
+          testmodel = $14,
+          testcases = $15::jsonb,
           progress = $16,
-          completedOn = $17
-        WHERE id = $18
+          completedon = $17,
+          invitesjoinsdata = $18::jsonb,
+          crashlogs = $19::jsonb
+        WHERE id = $20
       `;
+
       const values = [
-        username,
-        titleName,
-        leadName,
-        testStartDate,
-        testEndDate,
-        sandboxIds,
-        recoveryVersion,
-        binaryId,
-        skuIdentifier,
-        xboxVersion,
-        simplifiedUserModel,
-        windowsVersion,
-        supportedPlatforms,
-        testModel,
-        testCasesJson,
-        progress,
-        completedOn || null,
-        id,
+        username, // $1
+        titlename, // $2
+        leadname, // $3
+        teststartdate, // $4
+        testenddate, // $5
+        sandboxids, // $6
+        recoveryversion, // $7
+        binaryid, // $8
+        skuidentifier, // $9
+        xboxversion, // $10
+        simplifiedusermodel, // $11
+        windowsversion, // $12
+        supportedplatforms, // $13
+        testmodel, // $14
+        JSON.stringify(testcases), // $15: JSONB
+        progress, // $16
+        completedon || null, // $17
+        JSON.stringify(invitesjoinsdata) || "[]", // $18: JSONB
+        JSON.stringify(crashlogs) || "[]", // $19: JSONB
+        id, // $20
       ];
 
       try {
+        console.log("Ejecutando la consulta SQL para actualizar el tracker...");
+        console.log("Consulta SQL:", query);
+        console.log("Valores:", values);
+
         const res = await pool.query(query, values);
+        console.log("Actualización exitosa, filas afectadas:", res.rowCount);
         return { changes: res.rowCount };
       } catch (err) {
         console.error("Error actualizando tracker:", err.message);
+        console.error("Contenido de los campos JSON:");
+        console.error("Test Cases:", JSON.stringify(testcases));
+        console.error("Crash Logs:", JSON.stringify(crashlogs));
+        console.error(
+          "Invites & Joins Data:",
+          JSON.stringify(invitesjoinsdata)
+        );
         throw err;
       }
     },

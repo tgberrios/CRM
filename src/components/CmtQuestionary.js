@@ -1,16 +1,29 @@
 import React, { useState, useEffect } from "react";
-import { Box, Flex, Heading, RadioGroup, Text, Button } from "@chakra-ui/react";
-import { useNavigate } from "react-router-dom"; // Usar useNavigate en lugar de useHistory
+import {
+  Box,
+  Flex,
+  Heading,
+  RadioGroup,
+  Text,
+  Button,
+  Skeleton,
+  SkeletonText,
+  useToast,
+} from "@chakra-ui/react";
+import { useNavigate } from "react-router-dom"; // Use useNavigate instead of useHistory
 
 const QAForm = () => {
   const [currentSection, setCurrentSection] = useState(1);
   const [answers, setAnswers] = useState({});
   const [resultCodes, setResultCodes] = useState("");
   const [resultAnswers, setResultAnswers] = useState("");
+  const [isLoading, setIsLoading] = useState(false); // Loading state
 
-  const navigate = useNavigate(); // Cambiar a useNavigate para redireccionar
+  const navigate = useNavigate(); // Change to useNavigate for redirection
 
-  let arrCMTAnswers = {
+  const toast = useToast(); // Initialize toast
+
+  const arrCMTAnswers = {
     // Section A
     q1o1: "Agree.",
     q1o2: "Agree.",
@@ -80,6 +93,7 @@ const QAForm = () => {
     9: "I",
   };
 
+  // Function to handle moving to the next section
   const handleNextSection = (sectionNumber) => {
     setCurrentSection(sectionNumber);
     const section = document.getElementById(`section${sectionNumber}`);
@@ -88,53 +102,66 @@ const QAForm = () => {
     }
   };
 
+  // Function to handle selection of an answer
   const handleSelection = (question, value) => {
     setAnswers((prev) => ({ ...prev, [question]: value }));
   };
 
+  // Function to compile and display results
   const showResultCombined = () => {
     let resultCodesArray = [];
     let resultAnswersString = "";
 
     for (let i = 1; i <= 9; i++) {
-      const selectedOption = answers[`question${i}`]; // Captura la respuesta seleccionada
+      const selectedOption = answers[`question${i}`]; // Capture the selected answer
       if (selectedOption) {
-        const sectionPrefix = sectionPrefixes[i]; // Obtener el prefijo de la sección (A, B, C, etc.)
-        const code = `${sectionPrefix}${selectedOption.slice(1)}`; // Formatear el código correctamente
-        resultCodesArray.push(code); // Almacenar el código de la respuesta
+        const sectionPrefix = sectionPrefixes[i]; // Get the section prefix (A, B, C, etc.)
+        const code = `${sectionPrefix}${selectedOption.slice(1)}`; // Format the code correctly
+        resultCodesArray.push(code); // Store the answer code
 
-        const answerKey = `q${i}o${selectedOption.slice(1)}`; // Genera la llave para buscar en arrCMTAnswers
+        const answerKey = `q${i}o${selectedOption.slice(1)}`; // Generate the key to look up in arrCMTAnswers
 
-        // Verifica si el key está correctamente definido
+        // Check if the key is correctly defined
         if (arrCMTAnswers[answerKey]) {
-          resultAnswersString += `${arrCMTAnswers[answerKey]}<br>`; // Añade la respuesta correspondiente
+          resultAnswersString += `${arrCMTAnswers[answerKey]}<br>`; // Add the corresponding answer
         } else {
-          resultAnswersString += `Respuesta no encontrada<br>`; // Mensaje en caso de que no se encuentre la respuesta
+          resultAnswersString += `Answer not found<br>`; // Message if answer is not found
         }
       }
     }
 
     setResultCodes(resultCodesArray.join(" "));
-    setResultAnswers(resultAnswersString); // Genera las respuestas correctamente
+    setResultAnswers(resultAnswersString); // Compile the answers correctly
   };
 
+  // Effect to show results when all sections are completed
   useEffect(() => {
     if (currentSection === 10) {
       showResultCombined();
     }
   }, [currentSection]);
 
+  // Function to reset the form
   const handleReset = () => {
     setAnswers({});
     setResultCodes("");
     setResultAnswers("");
-    setCurrentSection(1); // Vuelve a la primera sección
+    setCurrentSection(1); // Return to the first section
+    toast({
+      title: "Form Reset",
+      description: "The form has been reset successfully.",
+      status: "info",
+      duration: 3000,
+      isClosable: true,
+    });
   };
 
+  // Function to navigate to the home page
   const handleGoHome = () => {
-    navigate("/home"); // Redirige a la página de inicio
+    navigate("/home"); // Redirect to the home page
   };
 
+  // Function to render each section
   const renderSection = (sectionNumber, questionText, options) => {
     return (
       <Box
@@ -147,7 +174,7 @@ const QAForm = () => {
         alignItems="center"
         py={8}
         bg={sectionNumber % 2 === 0 ? "#f5cba7" : "#f1948a"}
-        textAlign="center" // Asegura que todo el contenido esté centrado
+        textAlign="center" // Ensure all content is centered
       >
         <Heading as="h1" size="lg" textAlign="center" mb={4} color="black">
           {questionText}
@@ -196,7 +223,7 @@ const QAForm = () => {
             ))}
           </Flex>
         </RadioGroup>
-        {/* Botón para ir al Home desde la primera sección */}
+        {/* Button to go to Home from the first section */}
         {sectionNumber === 1 && (
           <Button mt={8} colorScheme="blue" onClick={handleGoHome}>
             Go to Home
@@ -208,22 +235,23 @@ const QAForm = () => {
 
   return (
     <Box>
+      {/* Render all sections */}
       {renderSection(
         1,
-        "Worked Proactively, whether autonomously or by following instruction?",
+        "Worked Proactively, whether autonomously or by following instructions?",
         [
           "Does not require follow-up on your tasks.",
           "Follows instructions given by the lead or senior lead.",
-          "Complete your assignments before 4:30 pm.",
-          "You were given 2 or more reminders to do your test cases.",
+          "Completes your assignments before 4:30 pm.",
+          "Were given 2 or more reminders to do your test cases.",
           "Did not follow any instruction, instead did a different task.",
-          "You don’t complete your assignments before 4:30 pm.",
+          "Didn’t complete your assignments before 4:30 pm.",
         ]
       )}
 
       {renderSection(
         2,
-        "Professional – Seated: Maintained a professional work ethic at all (tick all that apply)",
+        "Professional – Seated: Maintained a professional work ethic at all times (tick all that apply)",
         [
           "Remained seated, and only got up to go to the bathroom or require help.",
           "Remains seated but does not concentrate on tasks.",
@@ -243,7 +271,7 @@ const QAForm = () => {
 
       {renderSection(
         4,
-        "Professional – Chat: Maintained a professional work ethic at all (tick all that apply)",
+        "Professional – Chat: Maintained a professional work ethic at all times (tick all that apply)",
         [
           "Did not talk more than 10% on unrelated topics.",
           "Distracted coworkers by talking on unrelated topics.",
@@ -284,14 +312,14 @@ const QAForm = () => {
         "Once their assigned tasks were completed, the tester...",
         [
           "Helped coworkers without needing to be asked.",
-          "Show interest in helping the team",
+          "Showed interest in helping the team.",
           "Was asked 1 to 3 times to help with tasks.",
           "Ignored requests for help 3 or more times.",
           "Did not help, preferring to do unrelated activities.",
         ]
       )}
 
-      {renderSection(9, "Throughout the course of test, the tester...", [
+      {renderSection(9, "Throughout the course of the test, the tester...", [
         "Did not require supervision from a leader.",
         "Helped the leader by completing tasks on initiative.",
         "Demonstrated initiative in team tasks.",
@@ -300,7 +328,7 @@ const QAForm = () => {
         "Required supervision or instructions from a leader to continue.",
       ])}
 
-      {/* Sección de resultados */}
+      {/* Results Section */}
       <Box
         id="resultSection"
         display={currentSection === 10 ? "flex" : "none"}
@@ -312,26 +340,34 @@ const QAForm = () => {
         py={8}
         textAlign="center"
       >
-        <Flex flexDirection="column" alignItems="center">
-          <Heading as="h2" mb={4}>
-            Codes:
-          </Heading>
-          <Text dangerouslySetInnerHTML={{ __html: resultCodes }}></Text>
-          <Heading as="h2" mt={4} mb={4}>
-            Answers:
-          </Heading>
-          <Text dangerouslySetInnerHTML={{ __html: resultAnswers }}></Text>
+        {isLoading ? (
+          // Skeleton while loading results
+          <Box>
+            <Skeleton height="40px" mb={4} />
+            <SkeletonText mt="4" noOfLines={4} spacing="4" />
+          </Box>
+        ) : (
+          <Flex flexDirection="column" alignItems="center">
+            <Heading as="h2" mb={4}>
+              Codes:
+            </Heading>
+            <Text dangerouslySetInnerHTML={{ __html: resultCodes }}></Text>
+            <Heading as="h2" mt={4} mb={4}>
+              Answers:
+            </Heading>
+            <Text dangerouslySetInnerHTML={{ __html: resultAnswers }}></Text>
 
-          {/* Botones alineados al centro con más espacio */}
-          <Flex mt={8} justifyContent="space-around" width="100%">
-            <Button colorScheme="blue" onClick={handleGoHome}>
-              Go to Home
-            </Button>
-            <Button colorScheme="red" onClick={handleReset}>
-              Reset Form
-            </Button>
+            {/* Buttons aligned at the center with more space */}
+            <Flex mt={8} justifyContent="space-around" width="100%">
+              <Button colorScheme="blue" onClick={handleGoHome}>
+                Go to Home
+              </Button>
+              <Button colorScheme="red" onClick={handleReset}>
+                Reset Form
+              </Button>
+            </Flex>
           </Flex>
-        </Flex>
+        )}
       </Box>
     </Box>
   );

@@ -21,6 +21,7 @@ import {
   MenuItem,
   IconButton,
   useToast,
+  Skeleton,
 } from "@chakra-ui/react";
 import { useNavigate } from "react-router-dom";
 import { useTable, useFlexLayout, useColumnOrder } from "react-table";
@@ -30,7 +31,7 @@ import {
   ChevronDownIcon,
 } from "@chakra-ui/icons";
 
-// Función para hacer debounce de la búsqueda
+// Debounce function for search input
 const debounce = (func, delay) => {
   let timeout;
   return (...args) => {
@@ -39,7 +40,7 @@ const debounce = (func, delay) => {
   };
 };
 
-// Componente FMAScenarios optimizado con control de columnas y navegación horizontal
+// FMAScenarios Component with enhanced features
 const FMAScenarios = () => {
   const navigate = useNavigate();
   const toast = useToast();
@@ -50,19 +51,19 @@ const FMAScenarios = () => {
     "CoType",
     "Sandbox",
     "Bench",
-  ]); // Inicializar con las columnas ocultas por defecto
-  const tableRef = useRef(null); // Referencia para controlar el scroll de la tabla
+  ]); // Initialize with default hidden columns
+  const tableRef = useRef(null); // Reference for table scrolling
 
-  // Definir las columnas de la tabla
+  // Define table columns
   const columns = React.useMemo(
     () => [
       { Header: "Team", accessor: "Team" },
       { Header: "Position", accessor: "Position" },
       { Header: "Bench", accessor: "Bench" },
-      { Header: "Co. Type", accessor: "CoType" }, // Asegúrate que el accessor coincide con el header
+      { Header: "Co. Type", accessor: "CoType" }, // Ensure accessor matches the header
       { Header: "Sandbox", accessor: "Sandbox" },
-      { Header: "Asset Tag", accessor: "AssetTag" }, // Accesor sin espacio
-      { Header: "Console ID", accessor: "ConsoleID" }, // Accesor sin espacio
+      { Header: "Asset Tag", accessor: "AssetTag" }, // Accessor without space
+      { Header: "Console ID", accessor: "ConsoleID" }, // Accessor without space
       { Header: "Primary", accessor: "Primary" },
       { Header: "Secondary", accessor: "Secondary" },
       { Header: "Shared", accessor: "Shared" },
@@ -70,31 +71,31 @@ const FMAScenarios = () => {
     []
   );
 
-  // Función para cargar y procesar el archivo Excel de manera asincrónica
+  // Function to load and process the Excel file asynchronously
   const loadExcel = useCallback(async () => {
     try {
       if (!window.cert || !window.cert.loadConsoleExcel) {
-        throw new Error("cert.loadConsoleExcel está indefinido");
+        throw new Error("cert.loadConsoleExcel is undefined");
       }
 
-      // Reemplaza "ruta/a/tu/archivo.xlsx" con la ruta correcta o lógica para obtener el archivo
+      // Replace "path/to/your/file.xlsx" with the correct path or logic to obtain the file
       const response = await window.cert.loadConsoleExcel(
-        "ruta/a/tu/archivo.xlsx"
+        "path/to/your/file.xlsx"
       );
       if (response.success) {
         const jsonData = response.data;
 
         if (jsonData.length === 0) {
-          throw new Error("El archivo Excel está vacío.");
+          throw new Error("The Excel file is empty.");
         }
 
-        // Estándariza los encabezados eliminando espacios y convirtiendo a camelCase
+        // Standardize headers by removing spaces and converting to camelCase
         const originalHeaders = jsonData[0];
         const standardizedHeaders = originalHeaders.map((header) =>
           header.replace(/\s+/g, "")
         );
 
-        // Procesa las filas de datos
+        // Process data rows
         const rows = jsonData.slice(1).map((row) => {
           const rowData = {};
           standardizedHeaders.forEach((header, index) => {
@@ -105,19 +106,26 @@ const FMAScenarios = () => {
 
         setData(rows);
         setFilteredData(rows);
+        toast({
+          title: "Data Loaded",
+          description: "Console scenarios have been successfully loaded.",
+          status: "success",
+          duration: 3000,
+          isClosable: true,
+        });
       } else {
-        throw new Error(response.error || "Error al cargar el archivo Excel.");
+        throw new Error(response.error || "Error loading the Excel file.");
       }
     } catch (error) {
       toast({
         title: "Error",
         description:
-          "Hubo un problema al cargar los datos. Por favor, intenta más tarde.",
+          "There was a problem loading the data. Please try again later.",
         status: "error",
         duration: 5000,
         isClosable: true,
       });
-      console.error("Error al cargar Excel:", error);
+      console.error("Error loading Excel:", error);
     } finally {
       setLoading(false);
     }
@@ -127,7 +135,7 @@ const FMAScenarios = () => {
     loadExcel();
   }, [loadExcel]);
 
-  // Función de búsqueda con debounce
+  // Debounced search function
   const handleSearch = debounce((value) => {
     if (value === "") {
       setFilteredData(data);
@@ -146,7 +154,7 @@ const FMAScenarios = () => {
     handleSearch(e.target.value.toLowerCase());
   };
 
-  // Función para redirigir a /Home
+  // Function to navigate to /Home
   const goToHome = () => {
     navigate("/Home");
   };
@@ -156,7 +164,7 @@ const FMAScenarios = () => {
     {
       columns,
       data: filteredData,
-      initialState: { hiddenColumns }, // inicializar con columnas ocultas
+      initialState: { hiddenColumns }, // Initialize with hidden columns
     },
     useFlexLayout,
     useColumnOrder
@@ -172,7 +180,7 @@ const FMAScenarios = () => {
     setHiddenColumns: setTableHiddenColumns,
   } = tableInstance;
 
-  // Función para manejar la visibilidad de las columnas
+  // Function to toggle column visibility
   const toggleColumnVisibility = (columnId) => {
     const isHidden = hiddenColumns.includes(columnId);
     const newHiddenColumns = isHidden
@@ -180,10 +188,10 @@ const FMAScenarios = () => {
       : [...hiddenColumns, columnId];
 
     setHiddenColumns(newHiddenColumns);
-    setTableHiddenColumns(newHiddenColumns); // actualiza solo si el estado cambia
+    setTableHiddenColumns(newHiddenColumns); // Update only if the state changes
   };
 
-  // Función para desplazarse horizontalmente en la tabla
+  // Function to scroll the table horizontally
   const scrollTable = (direction) => {
     if (tableRef.current) {
       tableRef.current.scrollBy({
@@ -199,7 +207,7 @@ const FMAScenarios = () => {
         <Flex mb={4} align="center">
           <Input
             id="search-input"
-            placeholder="Buscar..."
+            placeholder="Search..."
             size="lg"
             onChange={onSearchInputChange}
             style={{
@@ -215,10 +223,10 @@ const FMAScenarios = () => {
             Home
           </Button>
 
-          {/* Botón para mostrar/ocultar columnas */}
+          {/* Button to show/hide columns */}
           <Menu>
             <MenuButton as={Button} rightIcon={<ChevronDownIcon />} ml={4}>
-              Editar Vista
+              Edit View
             </MenuButton>
             <MenuList>
               {allColumns.map((column) => (
@@ -237,25 +245,26 @@ const FMAScenarios = () => {
 
         {loading ? (
           <Flex justify="center" align="center" minH="200px">
-            <Spinner size="xl" color="green.500" />
+            <Spinner size="xl" color="#A5BFA1" />{" "}
+            {/* Preserved original green color */}
           </Flex>
         ) : filteredData.length > 0 ? (
           <Box position="relative" overflow="hidden">
-            {/* Flechas para navegar horizontalmente */}
+            {/* Arrows for horizontal navigation */}
             <Flex justify="space-between" align="center" mb={2}>
               <IconButton
                 icon={<ChevronLeftIcon />}
-                aria-label="Desplazar a la izquierda"
+                aria-label="Scroll Left"
                 onClick={() => scrollTable("left")}
-                colorScheme="teal"
+                colorScheme="green" // Preserved original green color scheme
                 variant="outline"
                 borderRadius="full"
               />
               <IconButton
                 icon={<ChevronRightIcon />}
-                aria-label="Desplazar a la derecha"
+                aria-label="Scroll Right"
                 onClick={() => scrollTable("right")}
-                colorScheme="teal"
+                colorScheme="green" // Preserved original green color scheme
                 variant="outline"
                 borderRadius="full"
               />
@@ -270,6 +279,8 @@ const FMAScenarios = () => {
             >
               <Table {...getTableProps()} variant="striped" colorScheme="gray">
                 <Thead bg="#A5BFA1">
+                  {" "}
+                  {/* Preserved original green background */}
                   {headerGroups.map((headerGroup) => (
                     <Tr {...headerGroup.getHeaderGroupProps()}>
                       {headerGroup.headers.map((column) => (
@@ -285,6 +296,8 @@ const FMAScenarios = () => {
                     prepareRow(row);
                     return (
                       <Tr {...row.getRowProps()} _hover={{ bg: "green.50" }}>
+                        {" "}
+                        {/* Preserved hover color */}
                         {row.cells.map((cell) => (
                           <Td {...cell.getCellProps()}>
                             {cell.render("Cell")}
@@ -300,7 +313,7 @@ const FMAScenarios = () => {
         ) : (
           <Flex justify="center" align="center" minH="200px">
             <Text fontSize="xl" color="gray.500">
-              No se encontraron resultados.
+              No results found.
             </Text>
           </Flex>
         )}

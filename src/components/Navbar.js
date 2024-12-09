@@ -1,3 +1,4 @@
+// Navbar.jsx
 import React from "react";
 import {
   Box,
@@ -16,15 +17,15 @@ const Navbar = () => {
   const downloadLink = "http://10.1.30.5:5005/";
 
   return (
-    <Box as="nav" bg="secondary" p={4} boxShadow="md">
+    <Box as="nav" bg="white" p={4} boxShadow="md">
       <Flex justify="center" align="center">
         <Flex gap={4}>
           <Link
             as={RouterLink}
             to="/news"
-            color="textPrimary"
+            color="gray.700"
             fontWeight="normal"
-            _hover={{ color: "accent" }}
+            _hover={{ color: "blue.500" }}
           >
             News
           </Link>
@@ -32,9 +33,9 @@ const Navbar = () => {
           <Link
             as={RouterLink}
             to="/dashboard"
-            color="textPrimary"
+            color="gray.700"
             fontWeight="normal"
-            _hover={{ color: "accent" }}
+            _hover={{ color: "blue.500" }}
           >
             Dashboard
           </Link>
@@ -42,9 +43,9 @@ const Navbar = () => {
           <Link
             as={RouterLink}
             to="/docs"
-            color="textPrimary"
+            color="gray.700"
             fontWeight="normal"
-            _hover={{ color: "accent" }}
+            _hover={{ color: "blue.500" }}
           >
             Docs
           </Link>
@@ -52,9 +53,9 @@ const Navbar = () => {
           <Link
             as={RouterLink}
             to="/TrackerComments"
-            color="textPrimary"
+            color="gray.700"
             fontWeight="normal"
-            _hover={{ color: "accent" }}
+            _hover={{ color: "blue.500" }}
           >
             XR Comments
           </Link>
@@ -63,30 +64,30 @@ const Navbar = () => {
             <MenuButton
               as={Text}
               variant="link"
-              color="textPrimary"
+              color="gray.700"
               fontWeight="normal"
-              _hover={{ color: "accent" }}
+              _hover={{ color: "blue.500" }}
               rightIcon={<ChevronDownIcon />}
             >
               KPI Management
             </MenuButton>
-            <MenuList bg="secondary" borderColor="textSecondary">
-              <MenuItem _hover={{ bg: "hover" }}>
+            <MenuList bg="white" borderColor="gray.200">
+              <MenuItem _hover={{ bg: "gray.100" }}>
                 <Link
                   as={RouterLink}
                   to="/Kpi"
-                  color="textPrimary"
-                  _hover={{ color: "accent" }}
+                  color="gray.700"
+                  _hover={{ color: "blue.500" }}
                 >
                   KPI
                 </Link>
               </MenuItem>
-              <MenuItem _hover={{ bg: "hover" }}>
+              <MenuItem _hover={{ bg: "gray.100" }}>
                 <Link
                   as={RouterLink}
                   to="/TitleAudit"
-                  color="textPrimary"
-                  _hover={{ color: "accent" }}
+                  color="gray.700"
+                  _hover={{ color: "blue.500" }}
                 >
                   Audits
                 </Link>
@@ -97,9 +98,9 @@ const Navbar = () => {
           <Link
             as={RouterLink}
             to="/SubmissionManager"
-            color="textPrimary"
+            color="gray.700"
             fontWeight="normal"
-            _hover={{ color: "accent" }}
+            _hover={{ color: "blue.500" }}
           >
             Submissions Manager
           </Link>
@@ -107,8 +108,8 @@ const Navbar = () => {
           <Link
             as={RouterLink}
             to="/LabDistribution"
-            color="textPrimary"
-            _hover={{ color: "accent" }}
+            color="gray.700"
+            _hover={{ color: "blue.500" }}
           >
             Lab Distribution & Info
           </Link>
@@ -116,8 +117,8 @@ const Navbar = () => {
           <Link
             as={RouterLink}
             to="/Tickets"
-            color="textPrimary"
-            _hover={{ color: "accent" }}
+            color="gray.700"
+            _hover={{ color: "blue.500" }}
           >
             Tickets
           </Link>
@@ -125,8 +126,8 @@ const Navbar = () => {
           <Link
             as={RouterLink}
             to="/Bugpedia"
-            color="textPrimary"
-            _hover={{ color: "accent" }}
+            color="gray.700"
+            _hover={{ color: "blue.500" }}
           >
             Bugpedia
           </Link>
@@ -134,8 +135,8 @@ const Navbar = () => {
           <Link
             as={RouterLink}
             to="/Sgc"
-            color="textPrimary"
-            _hover={{ color: "accent" }}
+            color="gray.700"
+            _hover={{ color: "blue.500" }}
           >
             Save Game Compatibility
           </Link>
@@ -143,8 +144,8 @@ const Navbar = () => {
           <Link
             as={RouterLink}
             to="/InventoryManager"
-            color="textPrimary"
-            _hover={{ color: "accent" }}
+            color="gray.700"
+            _hover={{ color: "blue.500" }}
           >
             Inventory Manager
           </Link>
@@ -153,89 +154,87 @@ const Navbar = () => {
             <MenuButton
               as={Text}
               variant="link"
-              color="textPrimary"
+              color="gray.700"
               fontWeight="normal"
-              _hover={{ color: "accent" }}
+              _hover={{ color: "blue.500" }}
               rightIcon={<ChevronDownIcon />}
             >
               Tools
             </MenuButton>
-            <MenuList bg="secondary" borderColor="textSecondary">
-              <MenuItem _hover={{ bg: "hover" }}>
+            <MenuList bg="white" borderColor="gray.200">
+              <MenuItem _hover={{ bg: "gray.100" }}>
                 <Link
                   href="https://cmlog.blob.core.windows.net/cmcont/publish.htm"
-                  color="textPrimary"
-                  _hover={{ color: "accent" }}
+                  color="gray.700"
+                  _hover={{ color: "blue.500" }}
                   target="_blank"
                 >
                   CMT
                 </Link>
               </MenuItem>
-              <MenuItem _hover={{ bg: "hover" }}>
+              <MenuItem _hover={{ bg: "gray.100" }}>
                 <Link
                   as={RouterLink}
                   to="/CmtQuestionary"
-                  color="textPrimary"
-                  _hover={{ color: "accent" }}
+                  color="gray.700"
+                  _hover={{ color: "blue.500" }}
                 >
                   CMT QUESTIONARY
                 </Link>
               </MenuItem>
-              <MenuItem _hover={{ bg: "hover" }}>
+              <MenuItem _hover={{ bg: "gray.100" }}>
                 <Link
                   as={RouterLink}
                   to="/RetailTracker"
-                  color="textPrimary"
-                  _hover={{ color: "accent" }}
+                  color="gray.700"
+                  _hover={{ color: "blue.500" }}
                 >
                   Retail Tracker
                 </Link>
               </MenuItem>
-              <MenuItem _hover={{ bg: "hover" }}>
+              <MenuItem _hover={{ bg: "gray.100" }}>
                 <Link
                   as={RouterLink}
                   to="/ConsolePrep"
-                  color="textPrimary"
-                  _hover={{ color: "accent" }}
+                  color="gray.700"
+                  _hover={{ color: "blue.500" }}
                 >
                   Console Prep
                 </Link>
               </MenuItem>
-              <MenuItem _hover={{ bg: "hover" }}>
+              <MenuItem _hover={{ bg: "gray.100" }}>
                 <Link
+                  href="https://aibugcopilot.azurewebsites.net/"
+                  color="gray.700"
+                  _hover={{ color: "blue.500" }}
                   target="_blank"
-                  as={RouterLink}
-                  to="https://aibugcopilot.azurewebsites.net/"
-                  color="textPrimary"
-                  _hover={{ color: "accent" }}
                 >
                   Bug Copilot
                 </Link>
               </MenuItem>
-              <MenuItem _hover={{ bg: "hover" }}>
+              <MenuItem _hover={{ bg: "gray.100" }}>
                 <Link
+                  href="https://xcert.xboxlive.com/xcertclient/XCert.appinstaller"
+                  color="gray.700"
+                  _hover={{ color: "blue.500" }}
                   target="_blank"
-                  as={RouterLink}
-                  to="https://xcert.xboxlive.com/xcertclient/XCert.appinstaller"
-                  color="textPrimary"
-                  _hover={{ color: "accent" }}
                 >
                   XCert Installer
                 </Link>
               </MenuItem>
+
+              <MenuItem _hover={{ bg: "gray.100" }}>
+                <Link
+                  href="https://xcert.xboxlive.com/submissions"
+                  color="gray.700"
+                  _hover={{ color: "blue.500" }}
+                  target="_blank"
+                >
+                  XCert Submissions
+                </Link>
+              </MenuItem>
             </MenuList>
           </Menu>
-
-          {/* Enlace "Look for updates" destacado */}
-          <Link
-            href={downloadLink}
-            color="blue.500"
-            fontWeight="bold"
-            _hover={{ color: "blue.600", textDecoration: "underline" }}
-            isExternal
-          >
-            Look for updates
-          </Link>
         </Flex>
       </Flex>
     </Box>

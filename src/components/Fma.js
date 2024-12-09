@@ -1,3 +1,4 @@
+// FMAScenarios.js
 import React, { useEffect, useState, useCallback } from "react";
 import {
   Box,
@@ -17,10 +18,22 @@ import {
   IconButton,
   HStack,
 } from "@chakra-ui/react";
-import { CopyIcon } from "@chakra-ui/icons"; // Importamos el icono de copiar
+import { CopyIcon } from "@chakra-ui/icons"; // Correct import for CopyIcon
 import { useNavigate } from "react-router-dom";
+import {
+  FaUser,
+  FaBug,
+  FaClipboardList,
+  FaTools,
+  FaTicketAlt,
+} from "react-icons/fa"; // Corrected icon imports
 
-// Función para hacer debounce de la búsqueda
+/**
+ * Debounce function to limit the rate at which a function can fire.
+ * @param {Function} func - The function to debounce.
+ * @param {number} delay - The delay in milliseconds.
+ * @returns {Function} - The debounced function.
+ */
 const debounce = (func, delay) => {
   let timeout;
   return (...args) => {
@@ -29,15 +42,21 @@ const debounce = (func, delay) => {
   };
 };
 
-// Componente FMAScenarios optimizado
+/**
+ * Main component for managing FMA Scenarios.
+ * @returns {JSX.Element} - The rendered component.
+ */
 const FMAScenarios = () => {
   const navigate = useNavigate();
   const toast = useToast();
   const [data, setData] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
 
-  // Función para cargar y procesar el archivo Excel de manera asincrónica
+  /**
+   * Fetches and processes the Excel file data asynchronously.
+   */
   const loadExcel = useCallback(async () => {
     try {
       if (!window.cert || !window.cert.loadExcel) {
@@ -64,11 +83,11 @@ const FMAScenarios = () => {
         throw new Error(response.error);
       }
     } catch (error) {
-      console.error("Error al cargar el archivo Excel:", error);
+      console.error("Error loading Excel file:", error);
       toast({
         title: "Error",
         description:
-          "Hubo un problema al cargar los datos. Por favor, intenta más tarde.",
+          "There was a problem loading the data. Please try again later.",
         status: "error",
         duration: 5000,
         isClosable: true,
@@ -82,7 +101,44 @@ const FMAScenarios = () => {
     loadExcel();
   }, [loadExcel]);
 
-  // Función de búsqueda con debounce
+  useEffect(() => {
+    setFilteredData(
+      searchTerm
+        ? data.filter((row) =>
+            Object.values(row).some((cell) =>
+              cell.toString().toLowerCase().includes(searchTerm)
+            )
+          )
+        : data
+    );
+  }, [searchTerm, data]);
+
+  /**
+   * Handles toast notifications.
+   * @param {string} description - The message to display.
+   * @param {string} status - The status of the toast (e.g., "success", "error").
+   */
+  const handleToast = (description, status) => {
+    toast({
+      title: description,
+      status: status,
+      duration: 2000,
+      isClosable: true,
+      position: "top-right",
+    });
+  };
+
+  /**
+   * Handles the search input change with debounce.
+   * @param {Event} e - The input change event.
+   */
+  const onSearchInputChange = (e) => {
+    handleSearch(e.target.value.toLowerCase());
+  };
+
+  /**
+   * Debounced search handler to optimize performance.
+   */
   const handleSearch = debounce((value) => {
     const filtered = data.filter((row) =>
       Object.values(row).some((cell) =>
@@ -92,31 +148,26 @@ const FMAScenarios = () => {
     setFilteredData(filtered);
   }, 300);
 
-  const onSearchInputChange = (e) => {
-    handleSearch(e.target.value.toLowerCase());
-  };
-
-  // Función para redirigir a /Home
+  /**
+   * Navigates to the Home page.
+   */
   const goToHome = () => {
     navigate("/Home");
   };
 
-  // Función para copiar texto al portapapeles
+  /**
+   * Copies the given text to the clipboard and shows a toast notification.
+   * @param {string} text - The text to copy.
+   */
   const handleCopy = (text) => {
     navigator.clipboard.writeText(text);
-    toast({
-      title: "Copied!",
-      description: "Scenario copied to clipboard.",
-      status: "success",
-      duration: 2000,
-      isClosable: true,
-    });
+    handleToast("Scenario copied to clipboard.", "success");
   };
 
   return (
     <Box bg="primary" minH="100vh" py={6}>
       <Container maxW="container.xl">
-        {/* Barra de búsqueda con botón de navegación */}
+        {/* Search bar with navigation button */}
         <Flex mb={4} align="center">
           <Input
             id="search-input"
@@ -137,7 +188,7 @@ const FMAScenarios = () => {
           </Button>
         </Flex>
 
-        {/* Indicador de carga */}
+        {/* Loading indicator */}
         {loading ? (
           <Flex justify="center" align="center" minH="200px">
             <Spinner size="xl" color="accent" />
@@ -170,11 +221,11 @@ const FMAScenarios = () => {
                     {Object.keys(row).map((key, cellIndex) => (
                       <Td
                         key={cellIndex}
-                        bg="transparent" // Fondo transparente
-                        border="none" // Sin borde
-                        py={4} // Más espacio vertical
-                        px={4} // Más espacio horizontal
-                        fontSize="sm" // Tamaño de texto un poco más pequeño
+                        bg="transparent"
+                        border="none"
+                        py={4}
+                        px={4}
+                        fontSize="sm"
                         color="textPrimary"
                       >
                         {key === "Scenario" ? (
@@ -187,8 +238,8 @@ const FMAScenarios = () => {
                               aria-label="Copy Scenario"
                               icon={<CopyIcon />}
                               size="sm"
-                              variant="ghost" // Eliminar el fondo verde
-                              color="black" // Ícono en negro
+                              variant="ghost"
+                              color="black"
                               onClick={() => handleCopy(row[key])}
                             />
                           </Flex>
@@ -205,7 +256,7 @@ const FMAScenarios = () => {
         ) : (
           <Flex justify="center" align="center" minH="200px">
             <Text fontSize="xl" color="textSecondary">
-              No se encontraron resultados.
+              No results found.
             </Text>
           </Flex>
         )}
@@ -214,4 +265,7 @@ const FMAScenarios = () => {
   );
 };
 
+/**
+ * Export the FMAScenarios component as default.
+ */
 export default FMAScenarios;
