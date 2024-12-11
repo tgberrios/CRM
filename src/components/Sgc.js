@@ -40,6 +40,7 @@ import {
   Spinner,
   Flex,
   Spacer,
+  FormErrorMessage,
 } from "@chakra-ui/react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -53,88 +54,141 @@ import {
 // Import the xlsx library for handling Excel files
 import * as XLSX from "xlsx";
 
-// Pagination Component (Custom Implementation)
-const CustomPagination = ({ currentPage, totalPages, onPageChange }) => {
-  const pageNumbers = [];
+// Pagination Component (Optimizado con React.memo)
+const CustomPagination = React.memo(
+  ({ currentPage, totalPages, onPageChange }) => {
+    const pageNumbers = [];
 
-  // Generate page numbers
-  for (let i = 1; i <= totalPages; i++) {
-    pageNumbers.push(i);
-  }
-
-  // Limit the number of page buttons displayed for better UX
-  const maxPageButtons = 5;
-  let startPage = 1;
-  let endPage = totalPages;
-
-  if (totalPages > maxPageButtons) {
-    const middle = Math.floor(maxPageButtons / 2);
-    if (currentPage <= middle) {
-      startPage = 1;
-      endPage = maxPageButtons;
-    } else if (currentPage + middle >= totalPages) {
-      startPage = totalPages - maxPageButtons + 1;
-      endPage = totalPages;
-    } else {
-      startPage = currentPage - middle;
-      endPage = currentPage + middle;
+    // Generar números de página
+    for (let i = 1; i <= totalPages; i++) {
+      pageNumbers.push(i);
     }
-  }
 
-  const visiblePages = pageNumbers.slice(startPage - 1, endPage);
+    // Limitar el número de botones de página mostrados para una mejor experiencia de usuario
+    const maxPageButtons = 5;
+    let startPage = 1;
+    let endPage = totalPages;
 
-  return (
-    <HStack spacing={2} mt={4} justify="center">
-      <Button
-        onClick={() => onPageChange(currentPage - 1)}
-        isDisabled={currentPage === 1}
-        size="sm"
-        variant="ghost"
-      >
-        Previous
-      </Button>
-      {startPage > 1 && (
-        <>
-          <Button onClick={() => onPageChange(1)} size="sm" variant="ghost">
-            1
-          </Button>
-          {startPage > 2 && <Text>...</Text>}
-        </>
-      )}
-      {visiblePages.map((number) => (
+    if (totalPages > maxPageButtons) {
+      const middle = Math.floor(maxPageButtons / 2);
+      if (currentPage <= middle) {
+        startPage = 1;
+        endPage = maxPageButtons;
+      } else if (currentPage + middle >= totalPages) {
+        startPage = totalPages - maxPageButtons + 1;
+        endPage = totalPages;
+      } else {
+        startPage = currentPage - middle;
+        endPage = currentPage + middle;
+      }
+    }
+
+    const visiblePages = pageNumbers.slice(startPage - 1, endPage);
+
+    return (
+      <HStack spacing={2} mt={4} justify="center">
         <Button
-          key={number}
-          onClick={() => onPageChange(number)}
-          variant={number === currentPage ? "solid" : "ghost"}
-          colorScheme={number === currentPage ? "blue" : "gray"}
+          onClick={() => onPageChange(currentPage - 1)}
+          isDisabled={currentPage === 1}
           size="sm"
+          variant="ghost"
         >
-          {number}
+          Previous
         </Button>
-      ))}
-      {endPage < totalPages && (
-        <>
-          {endPage < totalPages - 1 && <Text>...</Text>}
+        {startPage > 1 && (
+          <>
+            <Button onClick={() => onPageChange(1)} size="sm" variant="ghost">
+              1
+            </Button>
+            {startPage > 2 && <Text>...</Text>}
+          </>
+        )}
+        {visiblePages.map((number) => (
           <Button
-            onClick={() => onPageChange(totalPages)}
+            key={number}
+            onClick={() => onPageChange(number)}
+            variant={number === currentPage ? "solid" : "ghost"}
+            colorScheme={number === currentPage ? "blue" : "gray"}
             size="sm"
-            variant="ghost"
           >
-            {totalPages}
+            {number}
           </Button>
-        </>
+        ))}
+        {endPage < totalPages && (
+          <>
+            {endPage < totalPages - 1 && <Text>...</Text>}
+            <Button
+              onClick={() => onPageChange(totalPages)}
+              size="sm"
+              variant="ghost"
+            >
+              {totalPages}
+            </Button>
+          </>
+        )}
+        <Button
+          onClick={() => onPageChange(currentPage + 1)}
+          isDisabled={currentPage === totalPages}
+          size="sm"
+          variant="ghost"
+        >
+          Next
+        </Button>
+      </HStack>
+    );
+  }
+);
+
+// Subcomponente para la Tabla de Entradas (Optimizado con React.memo)
+const EntriesTable = React.memo(({ entries, onEdit, onDelete }) => (
+  <Table variant="simple" size="md">
+    <Thead>
+      <Tr>
+        <Th>Title</Th>
+        <Th>Date</Th>
+        <Th>User</Th>
+        <Th>Actions</Th>
+      </Tr>
+    </Thead>
+    <Tbody>
+      {entries.length > 0 ? (
+        entries.map((item) => (
+          <Tr key={item.id}>
+            <Td>{item.title_name}</Td>
+            <Td>{item.date}</Td>
+            <Td>{item.username}</Td>
+            <Td>
+              <HStack spacing={2}>
+                <IconButton
+                  icon={<EditIcon />}
+                  colorScheme="blue"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onEdit(item)}
+                  aria-label="Edit Entry"
+                />
+                <IconButton
+                  icon={<DeleteIcon />}
+                  colorScheme="red"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onDelete(item.id)}
+                  aria-label="Delete Entry"
+                />
+              </HStack>
+            </Td>
+          </Tr>
+        ))
+      ) : (
+        <Tr>
+          <Td colSpan="4">
+            <Text textAlign="center">No data available</Text>
+          </Td>
+        </Tr>
       )}
-      <Button
-        onClick={() => onPageChange(currentPage + 1)}
-        isDisabled={currentPage === totalPages}
-        size="sm"
-        variant="ghost"
-      >
-        Next
-      </Button>
-    </HStack>
-  );
-};
+    </Tbody>
+  </Table>
+));
 
 const SGCTracker = () => {
   const { isOpen, onOpen, onClose } = useDisclosure();
@@ -157,8 +211,8 @@ const SGCTracker = () => {
   const [selectedItem, setSelectedItem] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [formErrors, setFormErrors] = useState({});
-  const [loading, setLoading] = useState(false); // Loading state for data fetching
-  const [submitting, setSubmitting] = useState(false); // Loading state for form submission
+  const [loading, setLoading] = useState(false); // Estado de carga para la obtención de datos
+  const [submitting, setSubmitting] = useState(false); // Estado de carga para el envío del formulario
   const toast = useToast();
   const navigate = useNavigate();
 
@@ -171,20 +225,22 @@ const SGCTracker = () => {
     mostActiveUser: "",
   });
 
-  // Load all data on component mount
+  const [sortOrder, setSortOrder] = useState("desc"); // 'asc' o 'desc'
+
+  // Cargar todos los datos al montar el componente
   useEffect(() => {
     const username = localStorage.getItem("username") || "";
     setFormData((prev) => ({ ...prev, username }));
     loadAllData();
   }, []);
 
-  // Calculate statistics whenever dataList changes
+  // Calcular estadísticas cada vez que cambia dataList
   useEffect(() => {
     calculateStats();
   }, [dataList]);
 
-  // Function to calculate statistics
-  const calculateStats = () => {
+  // Función para calcular estadísticas
+  const calculateStats = useCallback(() => {
     const totalSGC = dataList.length;
     const today = new Date().toISOString().split("T")[0];
     const recentEntries = dataList.filter((entry) => entry.date === today);
@@ -208,9 +264,9 @@ const SGCTracker = () => {
       recentEntries,
       mostActiveUser,
     });
-  };
+  }, [dataList]);
 
-  // Function to load all data
+  // Función para cargar todos los datos
   const loadAllData = useCallback(async () => {
     setLoading(true);
     try {
@@ -245,13 +301,13 @@ const SGCTracker = () => {
     }
   }, [toast]);
 
-  // Handle form input changes
-  const handleInputChange = (e) => {
+  // Manejar cambios en los inputs del formulario
+  const handleInputChange = useCallback((e) => {
     const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
-  };
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  }, []);
 
-  // Handle form submission for adding/editing entries
+  // Manejar el envío del formulario para agregar/editar entradas
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -308,49 +364,64 @@ const SGCTracker = () => {
     }
   };
 
-  // Function to handle opening the modal for viewing/editing an entry
-  const showItemDetails = async (item) => {
-    try {
-      setSelectedItem(item);
-      setFormData(item);
-      onOpen();
-    } catch (error) {
-      console.error("Error loading item details:", error);
-      toast({
-        title: "Error",
-        description: "There was an error loading the item details.",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
-    }
-  };
+  // Función para abrir el modal y cargar detalles de una entrada
+  const showItemDetails = useCallback(
+    async (item) => {
+      try {
+        setSelectedItem(item);
+        setFormData(item);
+        onOpen();
+      } catch (error) {
+        console.error("Error loading item details:", error);
+        toast({
+          title: "Error",
+          description: "There was an error loading the item details.",
+          status: "error",
+          duration: 3000,
+          isClosable: true,
+        });
+      }
+    },
+    [onOpen, toast]
+  );
 
-  // Handle search functionality
-  const handleSearch = (e) => {
+  // Manejar la búsqueda
+  const handleSearch = useCallback((e) => {
     setSearchQuery(e.target.value.toLowerCase());
-    setCurrentPage(1); // Reset to first page on new search
-  };
+    setCurrentPage(1); // Reiniciar a la primera página en una nueva búsqueda
+  }, []);
 
-  // Filtered data based on search query
+  // Filtrar y ordenar los datos basados en la búsqueda y el orden seleccionado
   const filteredData = useMemo(() => {
-    return dataList.filter(
+    let data = dataList.filter(
       (item) =>
         (item.title_name &&
           item.title_name.toLowerCase().includes(searchQuery)) ||
         (item.date && item.date.toLowerCase().includes(searchQuery))
     );
-  }, [dataList, searchQuery]);
 
-  // Close modal and reset form
-  const handleCloseModal = () => {
+    data.sort((a, b) => {
+      const dateA = new Date(a.date);
+      const dateB = new Date(b.date);
+      if (sortOrder === "asc") {
+        return dateA - dateB;
+      } else {
+        return dateB - dateA;
+      }
+    });
+
+    return data;
+  }, [dataList, searchQuery, sortOrder]);
+
+  // Cerrar el modal y reiniciar el formulario
+  const handleCloseModal = useCallback(() => {
     setSelectedItem(null);
     onClose();
     resetFormData();
-  };
+  }, [onClose]);
 
-  // Reset form data to default values
-  const resetFormData = () => {
+  // Reiniciar los datos del formulario a los valores por defecto
+  const resetFormData = useCallback(() => {
     setFormData({
       date: new Date().toISOString().split("T")[0],
       position: "",
@@ -366,34 +437,37 @@ const SGCTracker = () => {
       username: localStorage.getItem("username") || "",
     });
     setFormErrors({});
-  };
+  }, []);
 
-  // Handle deleting an entry
-  const handleDelete = async (itemId) => {
-    try {
-      await window.cert.deleteData(itemId);
-      toast({
-        title: "Entry Deleted",
-        description: "The entry has been successfully deleted.",
-        status: "info",
-        duration: 3000,
-        isClosable: true,
-      });
-      loadAllData();
-    } catch (error) {
-      console.error("Error deleting data:", error);
-      toast({
-        title: "Error",
-        description: "There was an error deleting the entry.",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
-    }
-  };
+  // Manejar la eliminación de una entrada
+  const handleDelete = useCallback(
+    async (itemId) => {
+      try {
+        await window.cert.deleteData(itemId);
+        toast({
+          title: "Entry Deleted",
+          description: "The entry has been successfully deleted.",
+          status: "info",
+          duration: 3000,
+          isClosable: true,
+        });
+        loadAllData();
+      } catch (error) {
+        console.error("Error deleting data:", error);
+        toast({
+          title: "Error",
+          description: "There was an error deleting the entry.",
+          status: "error",
+          duration: 3000,
+          isClosable: true,
+        });
+      }
+    },
+    [loadAllData, toast]
+  );
 
-  // Function to export data to Excel
-  const exportToExcel = () => {
+  // Función para exportar datos a Excel
+  const exportToExcel = useCallback(() => {
     const worksheet = XLSX.utils.json_to_sheet(dataList);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "SGC_Tracker_Data");
@@ -405,69 +479,77 @@ const SGCTracker = () => {
       duration: 3000,
       isClosable: true,
     });
-  };
+  }, [dataList, toast]);
 
-  // Function to import data from Excel
-  const importFromExcel = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      // Create a FileReader
-      const reader = new FileReader();
-      reader.onload = async (event) => {
-        const data = new Uint8Array(event.target.result);
-        const workbook = XLSX.read(data, { type: "array" });
+  // Función para importar datos desde Excel
+  const importFromExcel = useCallback(
+    (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        // Crear un FileReader
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+          const data = new Uint8Array(event.target.result);
+          const workbook = XLSX.read(data, { type: "array" });
 
-        // Assume the first sheet is the one we want
-        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-        const importedData = XLSX.utils.sheet_to_json(worksheet);
+          // Asumir que la primera hoja es la que queremos
+          const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+          const importedData = XLSX.utils.sheet_to_json(worksheet);
 
-        // Save each entry using window.cert.saveData
-        try {
-          setLoading(true);
-          for (let entry of importedData) {
-            // Ensure the date is correctly formatted
-            entry.date =
-              typeof entry.date === "string"
-                ? entry.date
-                : new Date(entry.date).toISOString().split("T")[0];
-            await window.cert.saveData(entry);
+          // Guardar cada entrada usando window.cert.saveData
+          try {
+            setLoading(true);
+            for (let entry of importedData) {
+              // Asegurar que la fecha esté correctamente formateada
+              entry.date =
+                typeof entry.date === "string"
+                  ? entry.date
+                  : new Date(entry.date).toISOString().split("T")[0];
+              await window.cert.saveData(entry);
+            }
+            toast({
+              title: "Data Imported",
+              description: "The data has been imported successfully.",
+              status: "success",
+              duration: 3000,
+              isClosable: true,
+            });
+            loadAllData();
+          } catch (error) {
+            console.error("Error importing data:", error);
+            toast({
+              title: "Error",
+              description: "There was an error importing the data.",
+              status: "error",
+              duration: 3000,
+              isClosable: true,
+            });
+          } finally {
+            setLoading(false);
           }
-          toast({
-            title: "Data Imported",
-            description: "The data has been imported successfully.",
-            status: "success",
-            duration: 3000,
-            isClosable: true,
-          });
-          loadAllData();
-        } catch (error) {
-          console.error("Error importing data:", error);
-          toast({
-            title: "Error",
-            description: "There was an error importing the data.",
-            status: "error",
-            duration: 3000,
-            isClosable: true,
-          });
-        } finally {
-          setLoading(false);
-        }
-      };
-      reader.readAsArrayBuffer(file);
-    }
-  };
+        };
+        reader.readAsArrayBuffer(file);
+      }
+    },
+    [loadAllData, toast]
+  );
 
-  // Determine the entries to display on the current page
+  // Determinar las entradas a mostrar en la página actual
   const currentEntries = useMemo(() => {
     const indexOfLastEntry = currentPage * itemsPerPage;
     const indexOfFirstEntry = indexOfLastEntry - itemsPerPage;
     return filteredData.slice(indexOfFirstEntry, indexOfLastEntry);
   }, [filteredData, currentPage]);
 
-  // Calculate total number of pages
+  // Calcular el número total de páginas
   const totalPages = useMemo(() => {
     return Math.ceil(filteredData.length / itemsPerPage);
   }, [filteredData.length]);
+
+  // Función para alternar el orden de clasificación
+  const toggleSortOrder = useCallback(() => {
+    setSortOrder((prevOrder) => (prevOrder === "asc" ? "desc" : "asc"));
+  }, []);
 
   return (
     <Box display="flex" minH="100vh" fontSize="sm">
@@ -613,8 +695,23 @@ const SGCTracker = () => {
 
       {/* Contenido Principal */}
       <Box ml="350px" p={8} bg="gray.50" w="100%">
+        {/* Encabezado con Ordenamiento */}
+        <Flex align="center" mb={4}>
+          <Heading as="h2" size="lg" color="gray.700">
+            Dashboard
+          </Heading>
+          <Spacer />
+          <Button
+            onClick={toggleSortOrder}
+            leftIcon={<DownloadIcon />}
+            size="sm"
+          >
+            Ordenar: {sortOrder === "asc" ? "Más Antiguas" : "Más Nuevas"}
+          </Button>
+        </Flex>
+
         {/* Estadísticas */}
-        <SimpleGrid columns={3} spacing={6} mb={8}>
+        <SimpleGrid columns={[1, 2, 3]} spacing={6} mb={8}>
           <Stat
             p={5}
             bg="white"
@@ -671,53 +768,11 @@ const SGCTracker = () => {
               <Spinner size="lg" color="blue.500" />
             </Flex>
           ) : (
-            <Table variant="simple" size="md">
-              <Thead>
-                <Tr>
-                  <Th>Title</Th>
-                  <Th>Date</Th>
-                  <Th>User</Th>
-                  <Th>Actions</Th>
-                </Tr>
-              </Thead>
-              <Tbody>
-                {currentEntries.length > 0 ? (
-                  currentEntries.map((item) => (
-                    <Tr key={item.id}>
-                      <Td>{item.title_name}</Td>
-                      <Td>{item.date}</Td>
-                      <Td>{item.username}</Td>
-                      <Td>
-                        <HStack spacing={2}>
-                          <IconButton
-                            icon={<EditIcon />}
-                            colorScheme="blue"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => showItemDetails(item)}
-                            aria-label="Edit Entry"
-                          />
-                          <IconButton
-                            icon={<DeleteIcon />}
-                            colorScheme="red"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDelete(item.id)}
-                            aria-label="Delete Entry"
-                          />
-                        </HStack>
-                      </Td>
-                    </Tr>
-                  ))
-                ) : (
-                  <Tr>
-                    <Td colSpan="4">
-                      <Text textAlign="center">No data available</Text>
-                    </Td>
-                  </Tr>
-                )}
-              </Tbody>
-            </Table>
+            <EntriesTable
+              entries={currentEntries}
+              onEdit={showItemDetails}
+              onDelete={handleDelete}
+            />
           )}
 
           {/* Controles de Paginación */}
@@ -763,9 +818,7 @@ const SGCTracker = () => {
                           onChange={handleInputChange}
                         />
                         {formErrors.date && (
-                          <Text color="red.500" fontSize="sm">
-                            {formErrors.date}
-                          </Text>
+                          <FormErrorMessage>{formErrors.date}</FormErrorMessage>
                         )}
                       </FormControl>
 
@@ -779,9 +832,9 @@ const SGCTracker = () => {
                           placeholder="Enter position"
                         />
                         {formErrors.position && (
-                          <Text color="red.500" fontSize="sm">
+                          <FormErrorMessage>
                             {formErrors.position}
-                          </Text>
+                          </FormErrorMessage>
                         )}
                       </FormControl>
 
@@ -793,11 +846,12 @@ const SGCTracker = () => {
                           value={formData.email}
                           onChange={handleInputChange}
                           placeholder="Enter email"
+                          autoComplete="email"
                         />
                         {formErrors.email && (
-                          <Text color="red.500" fontSize="sm">
+                          <FormErrorMessage>
                             {formErrors.email}
-                          </Text>
+                          </FormErrorMessage>
                         )}
                       </FormControl>
 
@@ -811,9 +865,9 @@ const SGCTracker = () => {
                           placeholder="Enter gamertag"
                         />
                         {formErrors.gamertag && (
-                          <Text color="red.500" fontSize="sm">
+                          <FormErrorMessage>
                             {formErrors.gamertag}
-                          </Text>
+                          </FormErrorMessage>
                         )}
                       </FormControl>
                     </VStack>
@@ -840,9 +894,9 @@ const SGCTracker = () => {
                           placeholder="Enter title name"
                         />
                         {formErrors.title_name && (
-                          <Text color="red.500" fontSize="sm">
+                          <FormErrorMessage>
                             {formErrors.title_name}
-                          </Text>
+                          </FormErrorMessage>
                         )}
                       </FormControl>
 
@@ -905,9 +959,9 @@ const SGCTracker = () => {
                           placeholder="Enter publisher accounts"
                         />
                         {formErrors.publisher_accounts && (
-                          <Text color="red.500" fontSize="sm">
+                          <FormErrorMessage>
                             {formErrors.publisher_accounts}
-                          </Text>
+                          </FormErrorMessage>
                         )}
                       </FormControl>
 
@@ -924,9 +978,9 @@ const SGCTracker = () => {
                           placeholder="Enter publisher password"
                         />
                         {formErrors.publisher_password && (
-                          <Text color="red.500" fontSize="sm">
+                          <FormErrorMessage>
                             {formErrors.publisher_password}
-                          </Text>
+                          </FormErrorMessage>
                         )}
                       </FormControl>
 

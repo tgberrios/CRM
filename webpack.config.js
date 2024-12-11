@@ -7,18 +7,18 @@ module.exports = (env, argv) => {
   return {
     entry: "./src/index.js",
     //SIRVE PARA PRODUCCION!
-    output: {
-      path: path.resolve(__dirname, "dist"),
-      filename: "bundle.js",
-      publicPath: "./", // Rutas relativas en producción
-    },
-
-    //SIRVE PARA DESARROLLO
     // output: {
     //   path: path.resolve(__dirname, "dist"),
     //   filename: "bundle.js",
-    //   publicPath: isProduction ? "./" : "/", // Correctamente resuelve las rutas en producción
+    //   publicPath: "./", // Rutas relativas en producción
     // },
+
+    //SIRVE PARA DESARROLLO
+    output: {
+      path: path.resolve(__dirname, "dist"),
+      filename: "bundle.js",
+      publicPath: isProduction ? "./" : "/", // Correctamente resuelve las rutas en producción
+    },
 
     mode: isProduction ? "production" : "development",
     module: {

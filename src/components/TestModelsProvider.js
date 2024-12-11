@@ -1,7 +1,5 @@
 import React, { createContext, useContext } from "react";
 
-// Definir los datos de los test models, ahora con posiciones pX asignadas manualmente
-
 const testData = {
   testCases: {
     "001-01": "Title Stability",
@@ -110,9 +108,6 @@ const testData = {
     "074-06": "Variable Low Bandwith",
   },
   testModels: {
-    PRUEBA: {
-      p1: "001-01",
-    },
     TC5: {
       p1: "001-01",
       p2: "003-02",
