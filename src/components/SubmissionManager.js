@@ -517,24 +517,39 @@ const accountPrivilegesList = [
   {
     category: "Online Status and History",
     settings: [
-      { name: "Other can see if you're online", value: "Block" },
+      {
+        name: "Other can see if you're online",
+        value: "Block",
+      },
       {
         name: "Others can see what you're watching or listening to",
         value: "Block",
       },
-      { name: "Others can see your game and app history", value: "Block" },
+      {
+        name: "Others can see your game and app history",
+        value: "Block",
+      },
       {
         name: "Others can see your live TV and on-demand video history",
         value: "Block",
       },
-      { name: "Others can see your music history", value: "Block" },
+      {
+        name: "Others can see your music history",
+        value: "Block",
+      },
     ],
   },
   {
     category: "Profile",
     settings: [
-      { name: "Others can see your Xbox profile details", value: "Block" },
-      { name: "See other people's Xbox profiles", value: "Everybody" },
+      {
+        name: "Others can see your Xbox profile details",
+        value: "Block",
+      },
+      {
+        name: "See other people's Xbox profiles",
+        value: "Everybody",
+      },
       { name: "Real name", value: "Block" },
       {
         name: "You can share your real name with friends of friends",
@@ -572,7 +587,10 @@ const accountPrivilegesList = [
     category: "Game Content",
     settings: [
       { name: "You can upload captures to Xbox", value: "Block" },
-      { name: "Others can see your captures on Xbox", value: "Only me" },
+      {
+        name: "Others can see your captures on Xbox",
+        value: "Only me",
+      },
       { name: "You can see and upload community creations", value: "Block" },
       { name: "Broadcast gameplay", value: "Block" },
       {
@@ -633,6 +651,15 @@ const SubmissionManager = () => {
 
   const [isLoading, setIsLoading] = useState(true);
   const [isCompleting, setIsCompleting] = useState(false);
+
+  // Función para determinar el número de posiciones según el total de casos de prueba
+  const getNumberOfPositions = (totalTestCases) => {
+    if (totalTestCases <= 30) return 2;
+    if (totalTestCases <= 50) return 5;
+    if (totalTestCases > 90) return 13;
+    // Puedes ajustar este valor si necesitas manejar otros rangos
+    return 5; // Asumiendo que 51-90 también son 5
+  };
 
   // Carga inicial de datos
   useEffect(() => {
@@ -723,30 +750,53 @@ const SubmissionManager = () => {
     const modelObj = testModels[selectedModel];
     let testCasesArray = [];
 
-    // Logs para verificar la selección del modelo
-    console.log("Modelo seleccionado:", selectedModel);
-    console.log("Objeto del modelo:", modelObj);
-
     if (modelObj) {
-      const positionKeys = Object.keys(modelObj).sort((a, b) => {
-        const aNum = parseInt(a.replace("p", ""), 10);
-        const bNum = parseInt(b.replace("p", ""), 10);
-        return aNum - bNum;
+      const totalTestCases = Object.values(modelObj).length; // Total de casos de prueba
+
+      // Determinar el número de posiciones basado en el total de casos de prueba
+      const numberOfPositions = getNumberOfPositions(totalTestCases);
+
+      // Generar las claves de las posiciones (p1, p2, ..., pN)
+      const positionKeys = Array.from(
+        { length: numberOfPositions },
+        (_, i) => `p${i + 1}`
+      );
+
+      // Calcular el número de casos por posición
+      const perPositionCount = Math.ceil(totalTestCases / numberOfPositions);
+
+      console.log(
+        `Total Cases: ${totalTestCases}, Number of Positions: ${numberOfPositions}, Cases per Position: ${perPositionCount}`
+      );
+
+      let assignedCases = 0;
+
+      positionKeys.forEach((posKey) => {
+        const casesToAssign = Math.min(
+          perPositionCount,
+          totalTestCases - assignedCases
+        );
+
+        const testCaseIds = Object.values(modelObj).slice(
+          assignedCases,
+          assignedCases + casesToAssign
+        );
+
+        assignedCases += casesToAssign;
+
+        testCaseIds.forEach((testCaseId) => {
+          testCasesArray.push({
+            id: testCaseId,
+            name: testCases[testCaseId],
+            status: "In Progress",
+            testerName: "",
+            comment: "",
+            posKey: posKey,
+          });
+        });
       });
 
-      testCasesArray = positionKeys.map((posKey) => {
-        const testCaseId = modelObj[posKey];
-        return {
-          id: testCaseId,
-          name: testCases[testCaseId],
-          status: "In Progress",
-          testerName: "",
-          comment: "",
-          posKey: posKey,
-        };
-      });
-
-      console.log("Casos de prueba generados:", testCasesArray);
+      console.log("Casos de prueba distribuidos:", testCasesArray);
     }
 
     const newTracker = {
@@ -772,11 +822,6 @@ const SubmissionManager = () => {
 
     // Logs para verificar los datos capturados
     console.log("Datos del nuevo tracker:", newTracker);
-    console.log("Titlename:", newTracker.titlename);
-    console.log("Leadname:", newTracker.leadname);
-    console.log("Test Start Date:", newTracker.teststartdate);
-    console.log("Test End Date:", newTracker.testenddate);
-    console.log("Test Model:", newTracker.testmodel);
 
     try {
       if (window.cert && window.cert.addTracker) {
@@ -788,16 +833,12 @@ const SubmissionManager = () => {
           isClosable: true,
         });
 
-        // Log antes de llamar al backend
         console.log(
           "Enviando datos al backend para agregar tracker:",
           newTracker
         );
 
         const addedTracker = await window.cert.addTracker(newTracker);
-
-        // Log después de recibir la respuesta
-        console.log("Tracker agregado exitosamente:", addedTracker);
 
         setTrackers((prevTrackers) => [...prevTrackers, addedTracker]);
         onClose();
@@ -810,15 +851,6 @@ const SubmissionManager = () => {
             date: addedTracker.teststartdate,
           },
           ...prevLogs,
-        ]);
-        console.log("Logs actualizados después de agregar tracker:", [
-          {
-            id: addedTracker.id,
-            title: addedTracker.titlename,
-            action: "Created",
-            date: addedTracker.teststartdate,
-          },
-          ...logs, // Usar 'logs' en lugar de 'prevLogs' para reflejar el estado actual
         ]);
 
         toast({
