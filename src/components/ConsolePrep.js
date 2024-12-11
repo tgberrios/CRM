@@ -77,14 +77,14 @@ const NameDisplay = React.memo(({ name }) => {
 
 // Available roles definition
 const AVAILABLE_ROLES = [
-  { value: "tester", label: "Tester" },
-  { value: "lead", label: "Lead" },
-  { value: "manager", label: "Manager" },
-  { value: "w10_lead", label: "W10 Lead" },
-  { value: "senior_lead", label: "Senior Lead" },
-  { value: "labtech", label: "LabTech" },
-  { value: "rml", label: "RML" },
-  { value: "qa", label: "QA" },
+  { value: "Tester", label: "Tester" },
+  { value: "Lead", label: "Lead" },
+  { value: "Manager", label: "Manager" },
+  { value: "W10 Lead", label: "W10 Lead" },
+  { value: "Senior Lead", label: "Senior Lead" },
+  { value: "LabTech", label: "LabTech" },
+  { value: "RML", label: "RML" },
+  { value: "QA", label: "QA" },
 ];
 
 // Helper functions to handle roles
@@ -1081,28 +1081,28 @@ const ConsolePrep = () => {
     console.log("Randomizing personnel assignments.");
     // Filter available personnel by specific roles
     const availableManagers = personnelList.filter((person) =>
-      parseRoles(person.role).includes("manager")
+      parseRoles(person.role).includes("Manager")
     );
     const availableSeniorLeads = personnelList.filter((person) =>
-      parseRoles(person.role).includes("senior_lead")
+      parseRoles(person.role).includes("Senior Lead")
     );
     const availableRMLs = personnelList.filter((person) =>
-      parseRoles(person.role).includes("rml")
+      parseRoles(person.role).includes("RML")
     );
     const availableLabTechs = personnelList.filter((person) =>
-      parseRoles(person.role).includes("labtech")
+      parseRoles(person.role).includes("LabTech")
     );
     const availableLeads = personnelList.filter((person) =>
-      parseRoles(person.role).includes("lead")
+      parseRoles(person.role).includes("Lead")
     );
     const availableTesters = personnelList.filter((person) =>
-      parseRoles(person.role).includes("tester")
+      parseRoles(person.role).includes("Tester")
     );
 
     // Shuffle function
     const shuffle = (array) => array.sort(() => Math.random() - 0.5);
 
-    // Shuffle leads and testers
+    // Shuffle Leads and Testers
     const shuffledManagers = shuffle([...availableManagers]);
     const shuffledSeniorLeads = shuffle([...availableSeniorLeads]);
     const shuffledRMLs = shuffle([...availableRMLs]);
@@ -1118,18 +1118,18 @@ const ConsolePrep = () => {
       const newPersonnel = team.personnel.map((person, index) => {
         if (person.role && person.role.trim() !== "") {
           // Assign based on specific role
-          if (parseRoles(person.role).includes("manager")) {
+          if (parseRoles(person.role).includes("Manager")) {
             // Assign a Manager
-            const manager = shuffledManagers.find(
+            const Manager = shuffledManagers.find(
               (p) => !assignedIds.has(p.id)
             );
-            if (manager) {
-              assignedIds.add(manager.id);
-              return { ...person, name: manager.name };
+            if (Manager) {
+              assignedIds.add(Manager.id);
+              return { ...person, name: Manager.name };
             } else {
               return { ...person, name: "No Manager Available" };
             }
-          } else if (parseRoles(person.role).includes("senior_lead")) {
+          } else if (parseRoles(person.role).includes("Senior Lead")) {
             // Assign a Senior Lead
             const seniorLead = shuffledSeniorLeads.find(
               (p) => !assignedIds.has(p.id)
@@ -1140,16 +1140,16 @@ const ConsolePrep = () => {
             } else {
               return { ...person, name: "No Senior Lead Available" };
             }
-          } else if (parseRoles(person.role).includes("rml")) {
+          } else if (parseRoles(person.role).includes("RML")) {
             // Assign an RML
-            const rml = shuffledRMLs.find((p) => !assignedIds.has(p.id));
-            if (rml) {
-              assignedIds.add(rml.id);
-              return { ...person, name: rml.name };
+            const RML = shuffledRMLs.find((p) => !assignedIds.has(p.id));
+            if (RML) {
+              assignedIds.add(RML.id);
+              return { ...person, name: RML.name };
             } else {
               return { ...person, name: "No RML Available" };
             }
-          } else if (parseRoles(person.role).includes("labtech")) {
+          } else if (parseRoles(person.role).includes("LabTech")) {
             // Assign a LabTech
             const labTech = shuffledLabTechs.find(
               (p) => !assignedIds.has(p.id)
@@ -1160,21 +1160,21 @@ const ConsolePrep = () => {
             } else {
               return { ...person, name: "No LabTech Available" };
             }
-          } else if (parseRoles(person.role).includes("lead")) {
+          } else if (parseRoles(person.role).includes("Lead")) {
             // Assign a Lead
-            const lead = shuffledLeads.find((p) => !assignedIds.has(p.id));
-            if (lead) {
-              assignedIds.add(lead.id);
-              return { ...person, name: lead.name };
+            const Lead = shuffledLeads.find((p) => !assignedIds.has(p.id));
+            if (Lead) {
+              assignedIds.add(Lead.id);
+              return { ...person, name: Lead.name };
             } else {
               return { ...person, name: "No Lead Available" };
             }
           } else {
             // Assign a Tester
-            const tester = shuffledTesters.find((p) => !assignedIds.has(p.id));
-            if (tester) {
-              assignedIds.add(tester.id);
-              return { ...person, name: tester.name };
+            const Tester = shuffledTesters.find((p) => !assignedIds.has(p.id));
+            if (Tester) {
+              assignedIds.add(Tester.id);
+              return { ...person, name: Tester.name };
             } else {
               return { ...person, name: "No Tester Available" };
             }

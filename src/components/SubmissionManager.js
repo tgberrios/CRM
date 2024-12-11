@@ -121,14 +121,9 @@ const TestCaseItem = React.memo(({ testCase, onChange, isHistory }) => {
   );
 
   return (
-    <Grid templateColumns="repeat(4, 1fr)" gap={4} mb={4}>
+    <Grid templateColumns="repeat(3, 1fr)" gap={4} mb={4}>
       <GridItem colSpan={1}>
-        <HStack spacing={2}>
-          <Box fontWeight="bold">{testCase.name}</Box>
-          <Badge colorScheme="blue" borderRadius="full" px={2}>
-            {testCase.posKey.toUpperCase()}
-          </Badge>
-        </HStack>
+        <Box fontWeight="bold">{testCase.name}</Box>
       </GridItem>
       <GridItem colSpan={1}>
         {isHistory ? (
@@ -142,28 +137,32 @@ const TestCaseItem = React.memo(({ testCase, onChange, isHistory }) => {
         )}
       </GridItem>
       <GridItem colSpan={1}>
-        {isHistory ? (
-          <Box>{testCase.testerName}</Box>
-        ) : (
-          <Input
-            placeholder="Tester Name"
-            value={localTesterName}
-            onChange={handleTesterNameChange}
-          />
-        )}
-      </GridItem>
-      <GridItem colSpan={1}>
-        {isHistory ? (
-          <Box>{testCase.status}</Box>
-        ) : (
-          <Select value={localStatus} onChange={handleStatusChange}>
-            <option value="In Progress">In Progress</option>
-            <option value="PASS">PASS</option>
-            <option value="CNT">CNT</option>
-            <option value="N/A">N/A</option>
-            <option value="FAIL">FAIL</option>
-          </Select>
-        )}
+        <Grid templateColumns="repeat(2, 1fr)" gap={4}>
+          <GridItem>
+            {isHistory ? (
+              <Box>{testCase.testerName}</Box>
+            ) : (
+              <Input
+                placeholder="Tester Name"
+                value={localTesterName}
+                onChange={handleTesterNameChange}
+              />
+            )}
+          </GridItem>
+          <GridItem>
+            {isHistory ? (
+              <Box>{testCase.status}</Box>
+            ) : (
+              <Select value={localStatus} onChange={handleStatusChange}>
+                <option value="In Progress">In Progress</option>
+                <option value="PASS">PASS</option>
+                <option value="CNT">CNT</option>
+                <option value="N/A">N/A</option>
+                <option value="FAIL">FAIL</option>
+              </Select>
+            )}
+          </GridItem>
+        </Grid>
       </GridItem>
     </Grid>
   );
@@ -173,7 +172,6 @@ const TestCaseItem = React.memo(({ testCase, onChange, isHistory }) => {
 const TestCasesTab = React.memo(({ testCases, setTestCases, isHistory }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
-  const [positionFilter, setPositionFilter] = useState("");
 
   const handleTestCaseChange = useCallback(
     (updatedTestCase) => {
@@ -186,22 +184,15 @@ const TestCasesTab = React.memo(({ testCases, setTestCases, isHistory }) => {
     [setTestCases]
   );
 
-  const uniquePositions = useMemo(() => {
-    const positions = testCases.map((tc) => tc.posKey);
-    return Array.from(new Set(positions));
-  }, [testCases]);
-
   const filteredTestCases = useMemo(() => {
     return testCases.filter((tc) => {
       const matchesSearch = tc.name
         .toLowerCase()
         .includes(searchTerm.toLowerCase());
       const matchesStatus = statusFilter === "" || tc.status === statusFilter;
-      const matchesPosition =
-        positionFilter === "" || tc.posKey === positionFilter;
-      return matchesSearch && matchesStatus && matchesPosition;
+      return matchesSearch && matchesStatus;
     });
-  }, [testCases, searchTerm, statusFilter, positionFilter]);
+  }, [testCases, searchTerm, statusFilter]);
 
   const Row = useCallback(
     ({ index, style }) => (
@@ -237,18 +228,6 @@ const TestCasesTab = React.memo(({ testCases, setTestCases, isHistory }) => {
           <option value="N/A">N/A</option>
           <option value="FAIL">FAIL</option>
         </Select>
-        <Select
-          placeholder="Filtrar por posición"
-          value={positionFilter}
-          onChange={(e) => setPositionFilter(e.target.value)}
-          width="200px"
-        >
-          {uniquePositions.map((pos) => (
-            <option key={pos} value={pos}>
-              {pos.toUpperCase()}
-            </option>
-          ))}
-        </Select>
       </HStack>
       <Box height="500px">
         <AutoSizer>
@@ -268,7 +247,7 @@ const TestCasesTab = React.memo(({ testCases, setTestCases, isHistory }) => {
   );
 });
 
-// Componente InvitesJoinsTab (Simplificado)
+// Componente InvitesJoinsTab (Sin cambios)
 const InvitesJoinsTab = React.forwardRef(
   ({ selectedTracker, isHistory }, ref) => {
     const [data, setData] = useState(selectedTracker.invitesjoinsdata || []);
@@ -399,7 +378,7 @@ const InvitesJoinsTab = React.forwardRef(
   }
 );
 
-// Componente CrashLogsTab (Simplificado)
+// Componente CrashLogsTab (Sin cambios)
 const CrashLogsTab = React.forwardRef(({ selectedTracker, isHistory }, ref) => {
   const [data, setData] = useState(selectedTracker.crashlogs || []);
 
@@ -512,7 +491,7 @@ const CrashLogsTab = React.forwardRef(({ selectedTracker, isHistory }, ref) => {
   );
 });
 
-// Lista de privilegios de cuenta
+// Lista de privilegios de cuenta (Sin cambios)
 const accountPrivilegesList = [
   {
     category: "Online Status and History",
@@ -742,7 +721,6 @@ const SubmissionManager = () => {
           status: "In Progress",
           testerName: "",
           comment: "",
-          posKey: posKey,
         };
       });
 
@@ -1083,7 +1061,7 @@ const SubmissionManager = () => {
 
       const testCasesData = (tracker.testcases || []).map((tc, index) => [
         index + 1,
-        `${tc.name} (${tc.posKey.toUpperCase()})`,
+        tc.name,
         tc.status,
         tc.comment,
         tc.testerName,
@@ -1117,7 +1095,6 @@ const SubmissionManager = () => {
           setting.name,
           setting.value,
         ]);
-
         pdf.autoTable({
           startY: yPosition,
           head: [["Setting", "Value"]],
