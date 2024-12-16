@@ -12,11 +12,11 @@ const url = require("url");
 
 // Configuración de la conexión a PostgreSQL
 const pool = new Pool({
-  user: "postgres", // Reemplaza con tu usuario de PostgreSQL
-  host: "CERTPDC.CRLABCERT.com", // Reemplaza con el host de tu servidor PostgreSQL
-  database: "certdb", // Reemplaza con el nombre de tu base de datos
-  password: "!! abc 123", // Reemplaza con la contraseña de tu usuario de PostgreSQL
-  port: 5432, // Reemplaza con el puerto de tu servidor PostgreSQL si es diferente
+  user: "postgres",
+  host: "CERTPDC.CRLABCERT.com",
+  database: "certdb",
+  password: "!! abc 123",
+  port: 5432,
 });
 
 // Probar la conexión
@@ -431,7 +431,7 @@ function createWindow() {
   mainWindow.once("ready-to-show", () => {
     mainWindow.show();
     mainWindow.maximize();
-    mainWindow.webContents.openDevTools();
+    // mainWindow.webContents.openDevTools();
   });
 
   mainWindow.on("closed", () => {
