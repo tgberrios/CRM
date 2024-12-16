@@ -63,6 +63,7 @@
     "@chakra-ui/react": "^2.10.2",
     "@emotion/react": "^11.13.3",
     "@emotion/styled": "^11.13.0",
+    "@hello-pangea/dnd": "^17.0.0",
     "chakra-react-select": "^5.0.2",
     "chart.js": "^4.4.6",
     "date-fns": "^4.1.0",
@@ -80,6 +81,7 @@
     "pg": "^8.13.1",
     "quill": "^2.0.2",
     "react": "latest",
+    "react-beautiful-dnd": "^13.1.1",
     "react-chartjs-2": "^5.2.0",
     "react-datepicker": "^7.5.0",
     "react-dom": "latest",
@@ -93,6 +95,7 @@
     "react-window": "^1.8.10",
     "recharts": "^2.13.0",
     "sanitize-html": "^2.13.1",
+    "uuid": "^11.0.3",
     "xlsx": "^0.18.5"
   }
 }

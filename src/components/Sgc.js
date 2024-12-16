@@ -41,6 +41,7 @@ import {
   Flex,
   Spacer,
   FormErrorMessage,
+  useColorModeValue,
 } from "@chakra-ui/react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -227,17 +228,59 @@ const SGCTracker = () => {
 
   const [sortOrder, setSortOrder] = useState("desc"); // 'asc' o 'desc'
 
+  // Estado para el ancho de la barra lateral
+  const [sidebarWidth, setSidebarWidth] = useState(350); // Ancho inicial en px
+  const [isResizing, setIsResizing] = useState(false);
+
+  // Funciones para manejar el redimensionamiento de la barra lateral
+  const startResizing = useCallback((e) => {
+    e.preventDefault();
+    setIsResizing(true);
+  }, []);
+
+  const stopResizing = useCallback(() => {
+    setIsResizing(false);
+  }, []);
+
+  const resizeSidebar = useCallback(
+    (e) => {
+      if (isResizing) {
+        const newWidth = e.clientX;
+        // Establecer límites mínimos y máximos
+        if (newWidth >= 250 && newWidth <= 600) {
+          setSidebarWidth(newWidth);
+        }
+      }
+    },
+    [isResizing]
+  );
+
+  useEffect(() => {
+    if (isResizing) {
+      window.addEventListener("mousemove", resizeSidebar);
+      window.addEventListener("mouseup", stopResizing);
+    } else {
+      window.removeEventListener("mousemove", resizeSidebar);
+      window.removeEventListener("mouseup", stopResizing);
+    }
+
+    return () => {
+      window.removeEventListener("mousemove", resizeSidebar);
+      window.removeEventListener("mouseup", stopResizing);
+    };
+  }, [isResizing, resizeSidebar, stopResizing]);
+
   // Cargar todos los datos al montar el componente
   useEffect(() => {
     const username = localStorage.getItem("username") || "";
     setFormData((prev) => ({ ...prev, username }));
     loadAllData();
-  }, []);
+  }, [loadAllData]);
 
   // Calcular estadísticas cada vez que cambia dataList
   useEffect(() => {
     calculateStats();
-  }, [dataList]);
+  }, [dataList, calculateStats]);
 
   // Función para calcular estadísticas
   const calculateStats = useCallback(() => {
@@ -555,18 +598,19 @@ const SGCTracker = () => {
     <Box display="flex" minH="100vh" fontSize="sm">
       {/* Sidebar */}
       <Box
-        w="350px" // Ancho incrementado a 350px
+        w={`${sidebarWidth}px`}
         bg="gray.100"
         p={6}
         borderRight="1px"
         borderColor="gray.200"
         display="flex"
         flexDirection="column"
-        position="fixed" // Posicionamiento fijo
+        position="fixed"
         top={0}
         left={0}
         bottom={0}
         overflowY="auto"
+        transition="width 0.2s"
       >
         <Heading as="h1" size="lg" mb={6} color="gray.700" textAlign="center">
           SGC Tracker
@@ -693,8 +737,29 @@ const SGCTracker = () => {
         )}
       </Box>
 
+      {/* Resizer Handle */}
+      <Box
+        width="5px"
+        cursor="col-resize"
+        bg="gray.300"
+        position="fixed"
+        top={0}
+        left={`${sidebarWidth}px`}
+        bottom={0}
+        zIndex={100}
+        onMouseDown={startResizing}
+        _hover={{ bg: "gray.400" }}
+        transition="background-color 0.2s"
+      />
+
       {/* Contenido Principal */}
-      <Box ml="350px" p={8} bg="gray.50" w="100%">
+      <Box
+        ml={`${sidebarWidth + 5}px`} // Ajustar margen izquierdo según el ancho de la barra lateral y el handle
+        p={8}
+        bg="gray.50"
+        w="100%"
+        transition="margin-left 0.2s"
+      >
         {/* Encabezado con Ordenamiento */}
         <Flex align="center" mb={4}>
           <Heading as="h2" size="lg" color="gray.700">

@@ -1598,6 +1598,12 @@ const ConsolePrep = () => {
         <Heading as="h2" size="md" mb={4} color="teal.700">
           Personnel
         </Heading>
+
+        {/* Número total de personal disponible */}
+        <Text mb={4} color="gray.600" fontWeight="bold">
+          Total Disponible: {personnelList.length}
+        </Text>
+
         <List spacing={2}>
           {filteredPersonnelList.map((person) => {
             const personWorkDays = workDays[person.id];
@@ -1606,7 +1612,7 @@ const ConsolePrep = () => {
             const isAssigned =
               currentTeams.some((team) =>
                 team.personnel.some((p) => p.name === person.name)
-              ) || isLead(person.name); // Consider [LEAD] as assigned
+              ) || isLead(person.name); // Considerar [LEAD] como asignado
 
             return (
               <ListItem

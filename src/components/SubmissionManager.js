@@ -69,6 +69,9 @@ import { FixedSizeList as List } from "react-window";
 import AutoSizer from "react-virtualized-auto-sizer";
 import debounce from "lodash.debounce";
 
+// Función para formatear nombres de modelos reemplazando guiones bajos con espacios
+const formatModelName = (modelName) => modelName.replace(/_/g, " ");
+
 // Componente TestCaseItem
 const TestCaseItem = React.memo(({ testCase, onChange, isHistory }) => {
   const [localTesterName, setLocalTesterName] = useState(testCase.testerName);
@@ -655,7 +658,7 @@ const SubmissionManager = () => {
   // Función para determinar el número de posiciones según el total de casos de prueba
   const getNumberOfPositions = (totalTestCases) => {
     if (totalTestCases <= 30) return 2;
-    if (totalTestCases <= 50) return 5;
+    if (totalTestCases <= 60) return 5;
     if (totalTestCases > 90) return 13;
     // Puedes ajustar este valor si necesitas manejar otros rangos
     return 5; // Asumiendo que 51-90 también son 5
@@ -1098,7 +1101,7 @@ const SubmissionManager = () => {
       pdf.setFontSize(12);
       pdf.text(`Title Name: ${tracker.titlename}`, 14, 32);
       pdf.text(`Lead Name: ${tracker.leadname}`, 14, 40);
-      pdf.text(`Test Model: ${tracker.testmodel}`, 14, 48);
+      pdf.text(`Test Model: ${formatModelName(tracker.testmodel)}`, 14, 48);
 
       pdf.text(
         `Completed On: ${
@@ -1149,7 +1152,6 @@ const SubmissionManager = () => {
           setting.name,
           setting.value,
         ]);
-
         pdf.autoTable({
           startY: yPosition,
           head: [["Setting", "Value"]],
@@ -1411,7 +1413,7 @@ const SubmissionManager = () => {
       <Button mb="4" onClick={onOpen}>
         Add New Tracker
       </Button>
-      <Tabs variant="enclosed-colored">
+      <Tabs variant="soft-rounded">
         <TabList>
           <Tab>
             <HStack spacing={2}>
@@ -1714,7 +1716,7 @@ const SubmissionManager = () => {
                       ([model, passRate]) => (
                         <Flex key={model} mb={2} alignItems="center">
                           <Text flex="1" fontWeight="medium">
-                            {model}
+                            {formatModelName(model)}
                           </Text>
                           <Progress
                             value={passRate}
@@ -1924,11 +1926,14 @@ const SubmissionManager = () => {
               <GridItem colSpan={2}>
                 <FormControl>
                   <FormLabel>Test Model</FormLabel>
-                  <Select id="testModel">
+                  <Select
+                    id="testModel"
+                    variant="outline" // Puedes ajustar la variante según prefieras
+                  >
                     <option value="">Select a Test Model</option>
                     {Object.keys(testModels).map((modelKey) => (
                       <option key={modelKey} value={modelKey}>
-                        {modelKey}
+                        {formatModelName(modelKey)}
                       </option>
                     ))}
                   </Select>
@@ -1957,7 +1962,7 @@ const SubmissionManager = () => {
           <ModalCloseButton />
           <ModalBody id="tracker-details-content">
             {selectedTracker && (
-              <Tabs variant="enclosed-colored">
+              <Tabs variant="soft-rounded">
                 <TabList>
                   <Tab>
                     <HStack spacing={2}>
@@ -1992,7 +1997,8 @@ const SubmissionManager = () => {
                         <br />
                         <strong>Lead Name:</strong> {selectedTracker.leadname}
                         <br />
-                        <strong>Test Model:</strong> {selectedTracker.testmodel}
+                        <strong>Test Model:</strong>{" "}
+                        {formatModelName(selectedTracker.testmodel)}
                       </Box>
                       <TestCasesTab
                         testCases={testCasesState}
